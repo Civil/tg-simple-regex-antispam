@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/statefulFilters/state";
+
+message State {
+  bool verified = 1;
+  repeated int64 message_ids = 2;
+  google.protobuf.Timestamp last_update = 3;
+}

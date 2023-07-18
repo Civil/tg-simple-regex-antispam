@@ -19,3 +19,4 @@
 
 # Go workspace file
 go.work
+/cmd/tg-simple-regex-antispam/tg-simple-regex-antispam
