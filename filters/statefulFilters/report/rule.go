@@ -24,15 +24,18 @@ type Filter struct {
 
 	stateDir string
 
-	actions []actions.Action
+	filteringRules []interfaces.FilteringRule
+	actions        []actions.Action
 
-	db *badger.DB
+	db    *badger.DB
+	banDB bannedDB.BanDB
 
 	isFinal bool
 }
 
-func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]interface{},
-	_ []interfaces.FilteringRule, actions []actions.Action) (interfaces.StatefulFilter, error) {
+func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
+	filteringRules []interfaces.FilteringRule, actions []actions.Action,
+) (interfaces.StatefulFilter, error) {
 	var stateDir string
 	var err error
 	stateDir, err = config2.GetOptionString(config, "state_dir")
@@ -62,11 +65,12 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]interface{},
 	}
 
 	f := &Filter{
-		logger:   logger.With(zap.String("filter", "checkNevents")),
-		stateDir: stateDir,
-		db:       badgerDB,
-		isFinal:  isFinal,
-		actions:  actions,
+		logger:         logger.With(zap.String("filter", "checkNevents")),
+		stateDir:       stateDir,
+		db:             badgerDB,
+		isFinal:        isFinal,
+		filteringRules: filteringRules,
+		actions:        actions,
 	}
 	return f, nil
 }
@@ -98,7 +102,6 @@ func (r *Filter) getState(userID int64) (*state.State, error) {
 		return nil, err
 	}
 	return &s, nil
-
 }
 
 func (r *Filter) removeState(userID int64) error {
@@ -112,7 +115,6 @@ func (r *Filter) Score(msg telego.Message) int {
 	if strings.HasPrefix("/report", msg.Text) || strings.HasPrefix("/spam", msg.Text) {
 		return 100
 	}
-	return -1
 	userID := msg.From.ID
 	actualState, err := r.getState(userID)
 	if err != nil || actualState == nil || len(actualState.MessageIds) == 0 {
@@ -142,7 +144,7 @@ func (r *Filter) Score(msg telego.Message) int {
 			maxScore = score
 			if maxScore == 100 {
 				// We don't care about State of a spammer, but we need to track if they are banned (for some time)
-				err = r.bannedUsers.BanUser(userID)
+				err = r.banDB.BanUser(userID)
 				if err != nil {
 					r.logger.Error("failed to ban user", zap.Int64("userID", userID), zap.Error(err))
 					return maxScore

@@ -37,7 +37,7 @@ func (r *Action) ApplyToMessage(_ telego.Message) error {
 	return fmt.Errorf("not supported")
 }
 
-func New(logger *zap.Logger, bot *telego.Bot, config map[string]interface{}) (interfaces.Action, error) {
+func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
 	_ = config
 	return &Action{
 		logger: logger,

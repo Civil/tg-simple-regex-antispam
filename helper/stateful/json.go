@@ -1,11 +1,9 @@
 package stateful
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 )
 
 type Stateful interface {
@@ -18,7 +16,7 @@ type JsonStateful struct {
 	stateFile string
 }
 
-func (r *JsonStateful) prepareState() (interface{}, error) {
+func (r *JsonStateful) prepareState() (any, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -32,7 +30,7 @@ func (r *JsonStateful) SaveState() error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(r.stateFile, data, 06)
+	err = os.WriteFile(r.stateFile, data, 0o6)
 	if err != nil {
 		return err
 	}
@@ -42,16 +40,4 @@ func (r *JsonStateful) SaveState() error {
 
 func (r *JsonStateful) LoadState() error {
 	return fmt.Errorf("not implemented")
-}
-
-func SaveState(ctx context.Context, state Stateful) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-		time.Sleep(1 * time.Minute)
-		state.SaveState()
-	}
 }

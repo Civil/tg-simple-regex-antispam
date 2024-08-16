@@ -24,6 +24,9 @@ func (r *Action) ApplyToMessage(message telego.Message) error {
 		ChatID: message.Chat.ChatID(),
 	}
 	admins, err := r.bot.GetChatAdministrators(params)
+	if err != nil {
+		return fmt.Errorf("getting chat administrators: %w", err)
+	}
 	msgBuf := bytes.NewBuffer([]byte("User @" + message.From.Username + " reported a spam: "))
 	for i, admin := range admins {
 		if i != 0 {
@@ -51,7 +54,7 @@ func (r *Action) ApplyToMessage(message telego.Message) error {
 	return nil
 }
 
-func New(logger *zap.Logger, bot *telego.Bot, config map[string]interface{}) (interfaces.Action, error) {
+func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
 	_ = config
 	return &Action{
 		logger: logger,

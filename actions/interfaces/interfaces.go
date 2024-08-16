@@ -10,6 +10,6 @@ type Action interface {
 	ApplyToMessage(message telego.Message) error
 }
 
-type InitFunc func(*zap.Logger, *telego.Bot, map[string]interface{}) (Action, error)
+type InitFunc func(*zap.Logger, *telego.Bot, map[string]any) (Action, error)
 
 type HelpFunc func() string

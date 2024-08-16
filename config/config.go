@@ -7,21 +7,21 @@ import (
 )
 
 type ActionCfg struct {
-	Name      string                 `yaml:"name"`
-	Arguments map[string]interface{} `yaml:"arguments"`
+	Name      string         `yaml:"name"`
+	Arguments map[string]any `yaml:"arguments"`
 }
 
 type StatefulFilterConfig struct {
-	Name      string                 `yaml:"name"`
-	Arguments map[string]interface{} `yaml:"arguments"`
+	Name      string         `yaml:"name"`
+	Arguments map[string]any `yaml:"arguments"`
 	// Order matters
 	StatelessFilters []StatelessFilteringRules `yaml:"stateless_filtering_rules"`
 	Actions          []ActionCfg               `yaml:"actions"`
 }
 
 type StatelessFilteringRules struct {
-	Name      string                 `yaml:"name"`
-	Arguments map[string]interface{} `yaml:"arguments"`
+	Name      string         `yaml:"name"`
+	Arguments map[string]any `yaml:"arguments"`
 }
 
 type Config struct {
@@ -30,7 +30,7 @@ type Config struct {
 	AdminIDs       []int64 `yaml:"admin_ids"`
 	// Order matters
 	StatefulFilters []StatefulFilterConfig `yaml:"stateful_filters"`
-	BannedDBConfig  map[string]interface{} `yaml:"banned_db_config"`
+	BannedDBConfig  map[string]any         `yaml:"banned_db_config"`
 }
 
 func Load(file string) (*Config, error) {

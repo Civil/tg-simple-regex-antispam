@@ -34,7 +34,7 @@ func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }
 
-func New(config map[string]interface{}) (interfaces.FilteringRule, error) {
+func New(config map[string]any) (interfaces.FilteringRule, error) {
 	filterI, ok := config["regexp"]
 	if !ok {
 		return nil, fmt.Errorf("regexp filter requires `regexp` parameter to work properly")
@@ -57,7 +57,6 @@ func New(config map[string]interface{}) (interfaces.FilteringRule, error) {
 	}
 
 	res.regex, err = regexp.Compile(regex)
-
 	if err != nil {
 		return nil, err
 	}

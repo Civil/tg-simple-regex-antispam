@@ -33,8 +33,9 @@ type Filter struct {
 	isFinal bool
 }
 
-func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]interface{},
-	filteringRules []interfaces.FilteringRule, actions []actions.Action) (interfaces.StatefulFilter, error) {
+func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]any,
+	filteringRules []interfaces.FilteringRule, actions []actions.Action,
+) (interfaces.StatefulFilter, error) {
 	var stateDir string
 	var err error
 	stateDir, err = config2.GetOptionString(config, "state_dir")
@@ -102,7 +103,6 @@ func (r *Filter) getState(userID int64) (*state.State, error) {
 		return nil, err
 	}
 	return &s, nil
-
 }
 
 func (r *Filter) removeState(userID int64) error {

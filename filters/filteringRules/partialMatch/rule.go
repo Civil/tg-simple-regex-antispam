@@ -35,7 +35,7 @@ func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }
 
-func New(config map[string]interface{}) (interfaces.FilteringRule, error) {
+func New(config map[string]any) (interfaces.FilteringRule, error) {
 	filterI, ok := config["match"]
 	if !ok {
 		return nil, fmt.Errorf("partialMatch filter requires `match` configuration parameter")
