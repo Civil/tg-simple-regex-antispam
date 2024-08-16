@@ -2,8 +2,6 @@ module github.com/Civil/tg-simple-regex-antispam
 
 go 1.22.6
 
-replace github.com/Civil/tg-simple-regex-antispam => ./
-
 require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/mymmrac/telego v0.31.1
