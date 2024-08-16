@@ -9,17 +9,15 @@ import (
 )
 
 var (
-	supportedActions     map[string]interfaces.InitFunc
-	supportedActionsHelp map[string]interfaces.HelpFunc
+	supportedActions = map[string]interfaces.InitFunc{
+		"deleteAndBan":    deleteAndBan.New,
+		"addReportButton": addReportButton.New,
+	}
+	supportedActionsHelp = map[string]interfaces.HelpFunc{
+		"deleteAndBan":    deleteAndBan.Help,
+		"addReportButton": addReportButton.Help,
+	}
 )
-
-func init() {
-	supportedActions["deleteAndBan"] = deleteAndBan.New
-	supportedActionsHelp["deleteAndBan"] = deleteAndBan.Help
-
-	supportedActions["addReportButton"] = addReportButton.New
-	supportedActionsHelp["addReportButton"] = addReportButton.Help
-}
 
 var ErrUknownAction = errors.New("unknown action")
 

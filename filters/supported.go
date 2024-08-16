@@ -10,27 +10,24 @@ import (
 )
 
 var (
-	supportedFilteringRules     map[string]interfaces.InitFunc
-	supportedFilteringRulesHelp map[string]interfaces.HelpFunc
+	supportedFilteringRules = map[string]interfaces.InitFunc{
+		"regexp":       regex.New,
+		"partialMatch": partialMatch.New,
+	}
+	supportedFilteringRulesHelp = map[string]interfaces.HelpFunc{
+		"regexp": regex.Help,
+		"regex":  partialMatch.Help,
+	}
 )
 
 var (
-	supportedStatefulFilters     map[string]interfaces.StatefulInitFunc
-	supportedStatefulFiltersHelp map[string]interfaces.HelpFunc
+	supportedStatefulFilters = map[string]interfaces.StatefulInitFunc{
+		"checkNevents": checkNevents.New,
+	}
+	supportedStatefulFiltersHelp = map[string]interfaces.HelpFunc{
+		"checkNevents": checkNevents.Help,
+	}
 )
-
-func init() {
-	// Stateless filters
-	supportedFilteringRules["regexp"] = regex.New
-	supportedFilteringRulesHelp["regexp"] = regex.Help
-
-	supportedFilteringRules["partialMatch"] = partialMatch.New
-	supportedFilteringRulesHelp["regex"] = partialMatch.Help
-
-	// Stateful filters
-	supportedStatefulFilters["checkNevents"] = checkNevents.New
-	supportedStatefulFiltersHelp["checkNevents"] = checkNevents.Help
-}
 
 var ErrUknownStatefulFilter = errors.New("unknown stateful filter")
 
