@@ -1,7 +1,7 @@
 package deleteAndBan
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -33,8 +33,10 @@ func (r *Action) Apply(chatID telego.ChatID, messageIDs []int64, userID int64) e
 	return nil
 }
 
+var ErrNotSupported = errors.New("not supported")
+
 func (r *Action) ApplyToMessage(_ telego.Message) error {
-	return fmt.Errorf("not supported")
+	return ErrNotSupported
 }
 
 func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {

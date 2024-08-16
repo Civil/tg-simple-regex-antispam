@@ -2,6 +2,7 @@ package addReportButton
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/mymmrac/telego"
@@ -15,8 +16,10 @@ type Action struct {
 	bot    *telego.Bot
 }
 
+var ErrNotSupported = errors.New("not supported")
+
 func (r *Action) Apply(_ telego.ChatID, _ []int64, _ int64) error {
-	return fmt.Errorf("not supported")
+	return ErrNotSupported
 }
 
 func (r *Action) ApplyToMessage(message telego.Message) error {

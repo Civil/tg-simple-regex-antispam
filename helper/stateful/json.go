@@ -2,7 +2,7 @@ package stateful
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
 )
 
@@ -16,8 +16,10 @@ type JsonStateful struct {
 	stateFile string
 }
 
+var ErrNotImplemented = errors.New("not implemented")
+
 func (r *JsonStateful) prepareState() (any, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, ErrNotImplemented
 }
 
 func (r *JsonStateful) SaveState() error {
@@ -39,5 +41,5 @@ func (r *JsonStateful) SaveState() error {
 }
 
 func (r *JsonStateful) LoadState() error {
-	return fmt.Errorf("not implemented")
+	return ErrNotImplemented
 }

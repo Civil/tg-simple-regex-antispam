@@ -1,7 +1,7 @@
 package report
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/dgraph-io/badger/v4"
@@ -33,6 +33,11 @@ type Filter struct {
 	isFinal bool
 }
 
+var (
+	ErrStateDirEmpty = errors.New("state_dir cannot be empty")
+	ErrNIsZero       = errors.New("n cannot be equal to 0")
+)
+
 func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 	filteringRules []interfaces.FilteringRule, actions []actions.Action,
 ) (interfaces.StatefulFilter, error) {
@@ -43,7 +48,7 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 		return nil, err
 	}
 	if stateDir == "" {
-		return nil, fmt.Errorf("state_dir cannot be empty")
+		return nil, ErrStateDirEmpty
 	}
 
 	n, err := config2.GetOptionInt(config, "n")
@@ -51,7 +56,7 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 		return nil, err
 	}
 	if n == 0 {
-		return nil, fmt.Errorf("n cannot be equal to 0")
+		return nil, ErrNIsZero
 	}
 
 	isFinal, err := config2.GetOptionBool(config, "isFinal")

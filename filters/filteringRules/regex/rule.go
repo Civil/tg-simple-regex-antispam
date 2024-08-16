@@ -1,7 +1,7 @@
 package regex
 
 import (
-	"fmt"
+	"errors"
 	"regexp"
 
 	"github.com/mymmrac/telego"
@@ -34,17 +34,25 @@ func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }
 
+var (
+	ErrRequiresRegexpParameter = errors.New(
+		"regexp filter requires `regexp` parameter to work properly",
+	)
+	ErrFilterNotString = errors.New("filter is not a string")
+	ErrRegexpEmpty     = errors.New("regexp cannot be empty")
+)
+
 func New(config map[string]any) (interfaces.FilteringRule, error) {
 	filterI, ok := config["regexp"]
 	if !ok {
-		return nil, fmt.Errorf("regexp filter requires `regexp` parameter to work properly")
+		return nil, ErrRequiresRegexpParameter
 	}
 	regex, ok := filterI.(string)
 	if !ok {
-		return nil, fmt.Errorf("filter is not a string")
+		return nil, ErrFilterNotString
 	}
 	if regex == "" {
-		return nil, fmt.Errorf("regexp cannot be empty")
+		return nil, ErrRegexpEmpty
 	}
 
 	isFinal, err := config2.GetOptionBool(config, "isFinal")

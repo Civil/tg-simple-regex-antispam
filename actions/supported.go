@@ -1,15 +1,17 @@
 package actions
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/addReportButton"
 	"github.com/Civil/tg-simple-regex-antispam/actions/deleteAndBan"
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 )
 
-var supportedActions map[string]interfaces.InitFunc
-var supportedActionsHelp map[string]interfaces.HelpFunc
+var (
+	supportedActions     map[string]interfaces.InitFunc
+	supportedActionsHelp map[string]interfaces.HelpFunc
+)
 
 func init() {
 	supportedActions["deleteAndBan"] = deleteAndBan.New
@@ -19,10 +21,12 @@ func init() {
 	supportedActionsHelp["addReportButton"] = addReportButton.Help
 }
 
+var ErrUknownAction = errors.New("unknown action")
+
 func GetAction(name string) (interfaces.InitFunc, error) {
 	action, ok := supportedActions[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown action: %v", name)
+		return nil, ErrUknownAction
 	}
 	return action, nil
 }
