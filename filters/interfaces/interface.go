@@ -16,7 +16,7 @@ type FilteringRule interface {
 	IsFinal() bool
 }
 
-type InitFunc func(map[string]interface{}) (FilteringRule, error)
+type InitFunc func(map[string]any) (FilteringRule, error)
 
 type HelpFunc func() string
 
@@ -25,5 +25,5 @@ type StatefulFilter interface {
 	FilteringRule
 }
 
-type StatefulInitFunc func(*zap.Logger, bannedDB.BanDB, map[string]interface{}, []FilteringRule, []actions.Action) (StatefulFilter,
+type StatefulInitFunc func(*zap.Logger, bannedDB.BanDB, map[string]any, []FilteringRule, []actions.Action) (StatefulFilter,
 	error)

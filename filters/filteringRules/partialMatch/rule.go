@@ -1,7 +1,7 @@
 package partialMatch
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/mymmrac/telego"
@@ -35,17 +35,26 @@ func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }
 
-func New(config map[string]interface{}) (interfaces.FilteringRule, error) {
+var (
+	ErrRequiresMatchParam = errors.New(
+		"partialMatch filter requires `match` configuration parameter",
+	)
+	ErrFilterNotString      = errors.New("filter is not a string")
+	ErrMatchEmpty           = errors.New("`match` cannot be empty")
+	ErrCaseSensitiveNotBool = errors.New("case_sensitive is not a bool")
+)
+
+func New(config map[string]any) (interfaces.FilteringRule, error) {
 	filterI, ok := config["match"]
 	if !ok {
-		return nil, fmt.Errorf("partialMatch filter requires `match` configuration parameter")
+		return nil, ErrRequiresMatchParam
 	}
 	filter, ok := filterI.(string)
 	if !ok {
-		return nil, fmt.Errorf("filter is not a string")
+		return nil, ErrFilterNotString
 	}
 	if filter == "" {
-		return nil, fmt.Errorf("`match` cannot be empty")
+		return nil, ErrMatchEmpty
 	}
 
 	isFinal, err := config2.GetOptionBool(config, "isFinal")
@@ -58,7 +67,7 @@ func New(config map[string]interface{}) (interfaces.FilteringRule, error) {
 	if ok {
 		caseSensitive, ok = caseSensitiveI.(bool)
 		if !ok {
-			return nil, fmt.Errorf("case_sensitive is not a bool")
+			return nil, ErrCaseSensitiveNotBool
 		}
 	}
 

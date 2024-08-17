@@ -2,6 +2,7 @@ package addReportButton
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/mymmrac/telego"
@@ -15,8 +16,10 @@ type Action struct {
 	bot    *telego.Bot
 }
 
+var ErrNotSupported = errors.New("not supported")
+
 func (r *Action) Apply(_ telego.ChatID, _ []int64, _ int64) error {
-	return fmt.Errorf("not supported")
+	return ErrNotSupported
 }
 
 func (r *Action) ApplyToMessage(message telego.Message) error {
@@ -24,6 +27,9 @@ func (r *Action) ApplyToMessage(message telego.Message) error {
 		ChatID: message.Chat.ChatID(),
 	}
 	admins, err := r.bot.GetChatAdministrators(params)
+	if err != nil {
+		return fmt.Errorf("getting chat administrators: %w", err)
+	}
 	msgBuf := bytes.NewBuffer([]byte("User @" + message.From.Username + " reported a spam: "))
 	for i, admin := range admins {
 		if i != 0 {
@@ -51,7 +57,7 @@ func (r *Action) ApplyToMessage(message telego.Message) error {
 	return nil
 }
 
-func New(logger *zap.Logger, bot *telego.Bot, config map[string]interface{}) (interfaces.Action, error) {
+func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
 	_ = config
 	return &Action{
 		logger: logger,

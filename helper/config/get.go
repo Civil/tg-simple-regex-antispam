@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func GetOptionString(config map[string]interface{}, name string) (string, error) {
+func GetOptionString(config map[string]any, name string) (string, error) {
 	var val string
 	valI, ok := config[name]
 	if !ok {
@@ -17,7 +17,7 @@ func GetOptionString(config map[string]interface{}, name string) (string, error)
 	return val, nil
 }
 
-func GetOptionInt(config map[string]interface{}, name string) (int, error) {
+func GetOptionInt(config map[string]any, name string) (int, error) {
 	var val int
 	valI, ok := config[name]
 	if !ok {
@@ -30,7 +30,7 @@ func GetOptionInt(config map[string]interface{}, name string) (int, error) {
 	return val, nil
 }
 
-func GetOptionBool(config map[string]interface{}, name string) (bool, error) {
+func GetOptionBool(config map[string]any, name string) (bool, error) {
 	var val bool
 	valI, ok := config[name]
 	if !ok {

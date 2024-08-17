@@ -1,7 +1,7 @@
 package checkNevents
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/mymmrac/telego"
@@ -33,8 +33,14 @@ type Filter struct {
 	isFinal bool
 }
 
-func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]interface{},
-	filteringRules []interfaces.FilteringRule, actions []actions.Action) (interfaces.StatefulFilter, error) {
+var (
+	ErrStateDirEmpty = errors.New("state_dir cannot be empty")
+	ErrNIsZero       = errors.New("n cannot be equal to 0")
+)
+
+func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]any,
+	filteringRules []interfaces.FilteringRule, actions []actions.Action,
+) (interfaces.StatefulFilter, error) {
 	var stateDir string
 	var err error
 	stateDir, err = config2.GetOptionString(config, "state_dir")
@@ -42,7 +48,7 @@ func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]interface{}
 		return nil, err
 	}
 	if stateDir == "" {
-		return nil, fmt.Errorf("state_dir cannot be empty")
+		return nil, ErrStateDirEmpty
 	}
 
 	n, err := config2.GetOptionInt(config, "n")
@@ -50,7 +56,7 @@ func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]interface{}
 		return nil, err
 	}
 	if n == 0 {
-		return nil, fmt.Errorf("n cannot be equal to 0")
+		return nil, ErrNIsZero
 	}
 
 	isFinal, err := config2.GetOptionBool(config, "isFinal")
@@ -102,7 +108,6 @@ func (r *Filter) getState(userID int64) (*state.State, error) {
 		return nil, err
 	}
 	return &s, nil
-
 }
 
 func (r *Filter) removeState(userID int64) error {

@@ -20,10 +20,9 @@ import (
 func main() {
 	logger := zap.Must(zap.NewProduction())
 	zap.ReplaceGlobals(logger)
-	defer logger.Sync() // flushes buffer, if any
-
-	filters.New()
-	actions.New()
+	defer func() {
+		_ = logger.Sync() // flushes buffer, if any
+	}()
 
 	app := &cli.App{
 		Name:  "tg-simple-regex-antispam",
@@ -39,6 +38,9 @@ func main() {
 					}
 
 					banDB, err := bannedDB.New(logger, cfg.BannedDBConfig)
+					if err != nil {
+						logger.Fatal("failed initializing bannedD", zap.Error(err))
+					}
 					defer banDB.Close()
 
 					statefulFilters := make([]interfaces.StatefulFilter, 0)

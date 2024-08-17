@@ -1,8 +1,7 @@
 package bannedDB
 
 import (
-	"fmt"
-	"sync"
+	"errors"
 
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 
@@ -13,20 +12,25 @@ import (
 type BannedDB struct {
 	logger   *zap.Logger
 	stateDir string
-
-	bannedUsers sync.Map
-
-	db *badger.DB
+	db       *badger.DB
 }
 
-func New(logger *zap.Logger, config map[string]interface{}) (BanDB, error) {
+var ErrRequiresStateDir = errors.New(
+	"banDB requires `state_dir` configuration parameter",
+)
+
+var ErrStateDirNotString = errors.New(
+	"state_dir is not a string",
+)
+
+func New(logger *zap.Logger, config map[string]any) (BanDB, error) {
 	stateDirI, ok := config["state_dir"]
 	if !ok {
-		return nil, fmt.Errorf("banDB requires `state_dir` configuration parameter")
+		return nil, ErrRequiresStateDir
 	}
 	stateDir, ok := stateDirI.(string)
 	if !ok {
-		return nil, fmt.Errorf("state_dir is not a string")
+		return nil, ErrStateDirNotString
 	}
 
 	badgerDB, err := badger.Open(badger.DefaultOptions(stateDir))

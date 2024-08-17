@@ -1,7 +1,7 @@
 package filters
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/partialMatch"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/regex"
@@ -9,29 +9,32 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/filters/statefulFilters/checkNevents"
 )
 
-var supportedFilteringRules map[string]interfaces.InitFunc
-var supportedFilteringRulesHelp map[string]interfaces.HelpFunc
+var (
+	supportedFilteringRules = map[string]interfaces.InitFunc{
+		"regexp":       regex.New,
+		"partialMatch": partialMatch.New,
+	}
+	supportedFilteringRulesHelp = map[string]interfaces.HelpFunc{
+		"regexp": regex.Help,
+		"regex":  partialMatch.Help,
+	}
+)
 
-var supportedStatefulFilters map[string]interfaces.StatefulInitFunc
-var supportedStatefulFiltersHelp map[string]interfaces.HelpFunc
+var (
+	supportedStatefulFilters = map[string]interfaces.StatefulInitFunc{
+		"checkNevents": checkNevents.New,
+	}
+	supportedStatefulFiltersHelp = map[string]interfaces.HelpFunc{
+		"checkNevents": checkNevents.Help,
+	}
+)
 
-func init() {
-	// Stateless filters
-	supportedFilteringRules["regexp"] = regex.New
-	supportedFilteringRulesHelp["regexp"] = regex.Help
-
-	supportedFilteringRules["partialMatch"] = partialMatch.New
-	supportedFilteringRulesHelp["regex"] = partialMatch.Help
-
-	// Stateful filters
-	supportedStatefulFilters["checkNevents"] = checkNevents.New
-	supportedStatefulFiltersHelp["checkNevents"] = checkNevents.Help
-}
+var ErrUknownStatefulFilter = errors.New("unknown stateful filter")
 
 func GetStatefulFilter(name string) (interfaces.StatefulInitFunc, error) {
 	initFunc, ok := supportedStatefulFilters[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown stateful filter: %v", name)
+		return nil, ErrUknownStatefulFilter
 	}
 	return initFunc, nil
 }
