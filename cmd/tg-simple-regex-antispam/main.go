@@ -6,6 +6,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v3"
 
 	"github.com/Civil/tg-simple-regex-antispam/actions"
@@ -19,7 +20,15 @@ import (
 )
 
 func main() {
-	logger := zap.Must(zap.NewProduction())
+	atom := zap.NewAtomicLevel()
+	encoderCfg := zap.NewProductionEncoderConfig()
+
+	logger := zap.New(
+		zapcore.NewCore(
+			zapcore.NewJSONEncoder(encoderCfg),
+			zapcore.Lock(os.Stdout),
+			atom,
+		))
 	zap.ReplaceGlobals(logger)
 	_, err := zap.RedirectStdLogAt(logger, zap.ErrorLevel)
 	if err != nil {
@@ -43,6 +52,8 @@ func main() {
 						return err
 					}
 
+					atom.SetLevel(cfg.LogLevel)
+
 					banDB, err := bannedDB.New(logger, cfg.BannedDBConfig)
 					if err != nil {
 						logs.ErrNST(logger, "failed initializing bannedDB", err)
@@ -58,9 +69,10 @@ func main() {
 					statefulFilters := make([]interfaces.StatefulFilter, 0)
 					statelessFilters := filters.GetFilteringRules()
 
-					tbot, err := tg.NewTelego(logger, cfg.TelegramToken, statefulFilters)
+					tbot, err := tg.NewTelego(logger, cfg.TelegramToken, &statefulFilters)
 					if err != nil {
 						logger.Error("error creating bot", zap.Error(err))
+						return err
 					}
 					defer tbot.Stop()
 
@@ -118,6 +130,7 @@ func main() {
 					logger.Info("starting bot", zap.Any("config", cfg))
 
 					tbot.Start()
+
 					err = banDB.SaveState()
 					if err != nil {
 						logger.Error("error saving banDB state", zap.Error(err))

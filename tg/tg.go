@@ -1,6 +1,8 @@
 package tg
 
 import (
+	"errors"
+
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -20,10 +22,11 @@ type Telego struct {
 	logger *zap.Logger
 
 	bot     *telego.Bot
-	filters []interfaces.StatefulFilter
+	filters *[]interfaces.StatefulFilter
 }
 
 func (t *Telego) Start() {
+	t.logger.Info("starting telego...")
 	botUser, err := t.bot.GetMe()
 	if err != nil {
 		t.logger.Error("bot cannot identify itself", zap.Error(err))
@@ -44,7 +47,7 @@ func (t *Telego) Start() {
 			zap.Int64("chat_id", message.Chat.ID),
 			zap.Int64("from_user_id", userID),
 		)
-		logger.Info("got message")
+		logger.Info("got message", zap.Any("message", message))
 		if logger.Level().Enabled(zap.DebugLevel) {
 			logger.Debug("message content", zap.Any("message", message))
 			_, err := bot.SendMessage(
@@ -62,9 +65,9 @@ func (t *Telego) Start() {
 				logger.Error("error copying message", zap.Error(err))
 				return
 			}
-			logger.Info("message copied", zap.Int("new_message_id", newMsgId.MessageID))
+			logger.Debug("message copied", zap.Int("new_message_id", newMsgId.MessageID))
 		}
-		for _, f := range t.filters {
+		for _, f := range *t.filters {
 			logger.Info("applying filter",
 				zap.String("filter_name", f.GetName()),
 			)
@@ -82,6 +85,7 @@ func (t *Telego) Start() {
 
 	})
 
+	t.logger.Info("telego initialized")
 	bh.Start()
 }
 
@@ -93,7 +97,12 @@ func (t *Telego) GetBot() *telego.Bot {
 	return t.bot
 }
 
-func NewTelego(logger *zap.Logger, token string, filters []interfaces.StatefulFilter) (TgAPI, error) {
+func NewTelego(logger *zap.Logger, token string, filters *[]interfaces.StatefulFilter) (TgAPI, error) {
+	if token == "" || token == "your_telegram_bot_token" {
+		logger.Error("no token provided")
+		return nil, errors.New("no token provided")
+	}
+
 	t := &Telego{
 		logger:  logger,
 		token:   token,

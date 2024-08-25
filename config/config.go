@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,6 +37,8 @@ type Config struct {
 	// Order matters
 	StatefulFilters []StatefulFilterConfig `yaml:"stateful_filters"`
 	BannedDBConfig  map[string]any         `yaml:"banned_db_config"`
+
+	LogLevel zapcore.Level `yaml:"log_level"`
 }
 
 func (c *Config) Validate() error {
@@ -174,6 +177,7 @@ func SampleConfig() *Config {
 			},
 		},
 	}
+	res.LogLevel = zapcore.DebugLevel
 	_ = res.FillDefaults()
 	res.BannedDBConfig = map[string]any{
 		"state_dir": "/path/to/banned_db_state/dir",
