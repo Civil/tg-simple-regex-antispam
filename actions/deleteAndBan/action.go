@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
+	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 )
 
 type Action struct {
@@ -15,7 +16,7 @@ type Action struct {
 	bot    *telego.Bot
 }
 
-func (r *Action) Apply(chatID telego.ChatID, messageIDs []int64, userID int64) error {
+func (r *Action) Apply(_ interfaces2.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error {
 	for _, messageID := range messageIDs {
 		err := r.bot.DeleteMessage(tu.Delete(chatID, int(messageID)))
 		if err != nil {

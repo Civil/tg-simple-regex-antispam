@@ -27,8 +27,7 @@ type Filter struct {
 	filteringRules []interfaces.FilteringRule
 	actions        []actions.Action
 
-	db    *badger.DB
-	banDB bannedDB.BanDB
+	db *badger.DB
 
 	isFinal bool
 }
@@ -70,7 +69,7 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 	}
 
 	f := &Filter{
-		logger:         logger.With(zap.String("filter", "checkNevents")),
+		logger:         logger.With(zap.String("filter", "report")),
 		stateDir:       stateDir,
 		db:             badgerDB,
 		isFinal:        isFinal,
@@ -109,7 +108,7 @@ func (r *Filter) getState(userID int64) (*state.State, error) {
 	return &s, nil
 }
 
-func (r *Filter) removeState(userID int64) error {
+func (r *Filter) RemoveState(userID int64) error {
 	return r.db.Update(
 		func(txn *badger.Txn) error {
 			return txn.Delete(badgerHelper.UserIDToKey(userID))
@@ -117,8 +116,8 @@ func (r *Filter) removeState(userID int64) error {
 }
 
 func (r *Filter) Score(msg telego.Message) int {
-	if strings.HasPrefix("/report", msg.Text) || strings.HasPrefix("/spam", msg.Text) {
-		return 100
+	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
+		return 0
 	}
 	userID := msg.From.ID
 	actualState, err := r.getState(userID)
@@ -134,7 +133,7 @@ func (r *Filter) Score(msg telego.Message) int {
 		}
 	}
 
-	// We already verified that user
+	// We already reported that message/user
 	if actualState.Verified {
 		return -1
 	}
@@ -142,39 +141,6 @@ func (r *Filter) Score(msg telego.Message) int {
 	actualState.MessageIds = append(actualState.MessageIds, int64(msg.MessageID))
 	actualState.LastUpdate = timestamppb.Now()
 
-	maxScore := 0
-	for _, filter := range r.filteringRules {
-		score := filter.Score(msg)
-		if score > maxScore {
-			maxScore = score
-			if maxScore == 100 {
-				// We don't care about State of a spammer, but we need to track if they are banned (for some time)
-				err = r.banDB.BanUser(userID)
-				if err != nil {
-					r.logger.Error("failed to ban user", zap.Int64("userID", userID), zap.Error(err))
-					return maxScore
-				}
-
-				for _, action := range r.actions {
-					err = action.Apply(msg.Chat.ChatID(), actualState.MessageIds, userID)
-					if err != nil {
-						r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
-						return maxScore
-					}
-				}
-
-				err = r.removeState(userID)
-				if err != nil {
-					r.logger.Error("failed to remove state", zap.Int64("userID", userID), zap.Error(err))
-					return maxScore
-				}
-				return maxScore
-			}
-		}
-	}
-	if maxScore > 0 {
-		return maxScore
-	}
 	if len(actualState.MessageIds) >= r.n {
 		actualState.Verified = true
 		actualState.MessageIds = nil
@@ -187,7 +153,15 @@ func (r *Filter) Score(msg telego.Message) int {
 			zap.Error(err),
 		)
 	}
-	return 0
+
+	for _, action := range r.actions {
+		err = action.Apply(r, msg.Chat.ChatID(), actualState.MessageIds, userID)
+		if err != nil {
+			r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
+			return 100
+		}
+	}
+	return 100
 }
 
 func (r *Filter) IsStateful() bool {
@@ -195,7 +169,7 @@ func (r *Filter) IsStateful() bool {
 }
 
 func (r *Filter) GetName() string {
-	return "checkNEvents"
+	return "report"
 }
 
 func (r *Filter) IsFinal() bool {
@@ -203,7 +177,7 @@ func (r *Filter) IsFinal() bool {
 }
 
 func Help() string {
-	return "checkNevents requires `stateFile` parameter"
+	return "report requires `stateFile` parameter"
 }
 
 func (r *Filter) Close() error {

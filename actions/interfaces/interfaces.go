@@ -3,10 +3,12 @@ package interfaces
 import (
 	"github.com/mymmrac/telego"
 	"go.uber.org/zap"
+
+	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 )
 
 type Action interface {
-	Apply(chatID telego.ChatID, messageIDs []int64, userID int64) error
+	Apply(callbackStatefulFilter interfaces.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error
 	ApplyToMessage(message telego.Message) error
 }
 

@@ -8,21 +8,24 @@ import (
 )
 
 type ActionCfg struct {
-	Name      string         `yaml:"name"`
-	Arguments map[string]any `yaml:"arguments"`
+	Name       string         `yaml:"name"`
+	ActionName string         `yaml:"action_name"`
+	Arguments  map[string]any `yaml:"arguments"`
 }
 
 type StatefulFilterConfig struct {
-	Name      string         `yaml:"name"`
-	Arguments map[string]any `yaml:"arguments"`
+	Name       string         `yaml:"name"`
+	FilterName string         `yaml:"filter_name"`
+	Arguments  map[string]any `yaml:"arguments"`
 	// Order matters
 	StatelessFilters []StatelessFilteringRules `yaml:"stateless_filtering_rules"`
 	Actions          []ActionCfg               `yaml:"actions"`
 }
 
 type StatelessFilteringRules struct {
-	Name      string         `yaml:"name"`
-	Arguments map[string]any `yaml:"arguments"`
+	Name       string         `yaml:"name"`
+	FilterName string         `yaml:"filter_name"`
+	Arguments  map[string]any `yaml:"arguments"`
 }
 
 type Config struct {
@@ -57,7 +60,7 @@ func (c *Config) FillDefaults() error {
 			if c.StatefulFilters[i].Arguments == nil {
 				c.StatefulFilters[i].Arguments = map[string]any{}
 			}
-			c.StatefulFilters[i].Arguments["state_dir"] = c.DatabaseStateDirectory + "/" + c.StatefulFilters[i].Name
+			c.StatefulFilters[i].Arguments["state_dir"] = c.DatabaseStateDirectory + "/" + c.StatefulFilters[i].FilterName
 		}
 	}
 
@@ -106,12 +109,48 @@ func SampleConfig() *Config {
 	res.AdminIDs = []int64{1, 2, 3}
 	res.StatefulFilters = []StatefulFilterConfig{
 		{
-			Name:      "spam_filter",
-			Arguments: map[string]any{"threshold": 3},
+			FilterName: "spam_filter",
+			Name:       "checkNevents",
+			Arguments: map[string]any{
+				"n":       5,
+				"isFinal": false,
+			},
 			StatelessFilters: []StatelessFilteringRules{
 				{
-					Name:      "contains_regex",
-					Arguments: map[string]any{"regex": ".*[Ss]pam.*"},
+					Name:       "partial_match",
+					FilterName: "match bad substring",
+					Arguments: map[string]any{
+						"match":         "bad_substring",
+						"isFinal":       true,
+						"caseSensitive": false,
+					},
+				},
+				{
+					Name:       "regex",
+					FilterName: "contains_regex",
+					Arguments:  map[string]any{"regex": ".*[Ss]pam.*"},
+				},
+			},
+			Actions: []ActionCfg{
+				{
+					Name:       "deleteAndBan",
+					ActionName: "ban user and delete their messages",
+					Arguments:  nil,
+				},
+			},
+		},
+		{
+			FilterName: "moderation_filter",
+			Name:       "checkNevents",
+			Arguments: map[string]any{
+				"n":       2,
+				"isFinal": false,
+			},
+			StatelessFilters: []StatelessFilteringRules{
+				{
+					Name:       "regex",
+					FilterName: "contains a regex",
+					Arguments:  map[string]any{"regex": ".*[Bb]ad.*"},
 				},
 			},
 			Actions: []ActionCfg{
@@ -122,29 +161,10 @@ func SampleConfig() *Config {
 			},
 		},
 		{
-			Name:      "moderation_filter",
-			Arguments: map[string]any{"threshold": 2},
-			StatelessFilters: []StatelessFilteringRules{
-				{
-					Name:      "contains_regex",
-					Arguments: map[string]any{"regex": ".*[Bb]ad.*"},
-				},
-			},
-			Actions: []ActionCfg{
-				{
-					Name:      "deleteAndBan",
-					Arguments: nil,
-				},
-			},
-		},
-		{
-			Name:      "report",
-			Arguments: map[string]any{"threshold": 2},
-			StatelessFilters: []StatelessFilteringRules{
-				{
-					Name:      "contains_regex",
-					Arguments: map[string]any{"regex": "^/report"},
-				},
+			FilterName: "report",
+			Name:       "report",
+			Arguments: map[string]any{
+				"is_anonymous_report": false,
 			},
 			Actions: []ActionCfg{
 				{

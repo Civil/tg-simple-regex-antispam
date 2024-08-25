@@ -110,7 +110,7 @@ func (r *Filter) getState(userID int64) (*state.State, error) {
 	return &s, nil
 }
 
-func (r *Filter) removeState(userID int64) error {
+func (r *Filter) RemoveState(userID int64) error {
 	return r.db.Update(
 		func(txn *badger.Txn) error {
 			return txn.Delete(badgerHelper.UserIDToKey(userID))
@@ -157,14 +157,14 @@ func (r *Filter) Score(msg telego.Message) int {
 				}
 
 				for _, action := range r.actions {
-					err = action.Apply(msg.Chat.ChatID(), actualState.MessageIds, userID)
+					err = action.Apply(r, msg.Chat.ChatID(), actualState.MessageIds, userID)
 					if err != nil {
 						r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
 						return maxScore
 					}
 				}
 
-				err = r.removeState(userID)
+				err = r.RemoveState(userID)
 				if err != nil {
 					r.logger.Error("failed to remove state", zap.Int64("userID", userID), zap.Error(err))
 					return maxScore

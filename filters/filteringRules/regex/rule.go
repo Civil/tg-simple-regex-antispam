@@ -43,7 +43,7 @@ var (
 )
 
 func New(config map[string]any) (interfaces.FilteringRule, error) {
-	filterI, ok := config["regexp"]
+	filterI, ok := config["regex"]
 	if !ok {
 		return nil, ErrRequiresRegexpParameter
 	}

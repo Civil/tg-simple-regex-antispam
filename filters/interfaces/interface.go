@@ -2,10 +2,7 @@ package interfaces
 
 import (
 	"github.com/mymmrac/telego"
-	"go.uber.org/zap"
 
-	actions "github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
-	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/helper/stateful"
 )
 
@@ -23,7 +20,5 @@ type HelpFunc func() string
 type StatefulFilter interface {
 	stateful.Stateful
 	FilteringRule
+	RemoveState(userID int64) error
 }
-
-type StatefulInitFunc func(*zap.Logger, bannedDB.BanDB, map[string]any, []FilteringRule, []actions.Action) (StatefulFilter,
-	error)

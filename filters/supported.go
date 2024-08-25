@@ -7,6 +7,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/regex"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/filters/statefulFilters/checkNevents"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types"
 )
 
 var (
@@ -21,7 +22,7 @@ var (
 )
 
 var (
-	supportedStatefulFilters = map[string]interfaces.StatefulInitFunc{
+	supportedStatefulFilters = map[string]types.StatefulInitFunc{
 		"checkNevents": checkNevents.New,
 	}
 	supportedStatefulFiltersHelp = map[string]interfaces.HelpFunc{
@@ -31,7 +32,7 @@ var (
 
 var ErrUknownStatefulFilter = errors.New("unknown stateful filter")
 
-func GetStatefulFilter(name string) (interfaces.StatefulInitFunc, error) {
+func GetStatefulFilter(name string) (types.StatefulInitFunc, error) {
 	initFunc, ok := supportedStatefulFilters[name]
 	if !ok {
 		return nil, ErrUknownStatefulFilter
@@ -39,7 +40,7 @@ func GetStatefulFilter(name string) (interfaces.StatefulInitFunc, error) {
 	return initFunc, nil
 }
 
-func GetStatefulFilters() map[string]interfaces.StatefulInitFunc {
+func GetStatefulFilters() map[string]types.StatefulInitFunc {
 	return supportedStatefulFilters
 }
 
