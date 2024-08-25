@@ -31,6 +31,10 @@ func (r *Filter) GetName() string {
 	return "partialMatch"
 }
 
+func (r *Filter) GetFilterName() string {
+	return ""
+}
+
 func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }

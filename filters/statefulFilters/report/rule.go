@@ -19,14 +19,16 @@ import (
 )
 
 type Filter struct {
-	logger *zap.Logger
+	chainName string
+	logger    *zap.Logger
 
 	stateDir string
 
 	filteringRules []interfaces.FilteringRule
 	actions        []actions.Action
 
-	db *badger.DB
+	db  *badger.DB
+	bot *telego.Bot
 
 	isFinal bool
 }
@@ -36,7 +38,7 @@ var (
 	ErrNIsZero       = errors.New("n cannot be equal to 0")
 )
 
-func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
+func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot, config map[string]any,
 	filteringRules []interfaces.FilteringRule, actions []actions.Action,
 ) (interfaces.StatefulFilter, error) {
 	var stateDir string
@@ -60,9 +62,14 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 	}
 
 	f := &Filter{
-		logger:         logger.With(zap.String("filter", "report")),
+		logger: logger.With(
+			zap.String("filter", chainName),
+			zap.String("filter_type", "report"),
+		),
+		chainName:      chainName,
 		stateDir:       stateDir,
 		db:             badgerDB,
+		bot:            bot,
 		isFinal:        isFinal,
 		filteringRules: filteringRules,
 		actions:        actions,
@@ -132,6 +139,20 @@ func (r *Filter) Score(msg *telego.Message) int {
 	// We already reported that message/user
 	if actualState.Verified {
 		r.logger.Debug("message/user already reported")
+		sendMessageParams := &telego.SendMessageParams{
+			ChatID: msg.Chat.ChatID(),
+			Text:   "Message/user already reported",
+			ReplyParameters: &telego.ReplyParameters{
+				MessageID: msg.MessageID,
+			},
+		}
+
+		_, err = r.bot.SendMessage(
+			sendMessageParams,
+		)
+		if err != nil {
+			r.logger.Error("failed to send message", zap.Error(err))
+		}
 		return -1
 	}
 
@@ -166,6 +187,10 @@ func (r *Filter) IsStateful() bool {
 
 func (r *Filter) GetName() string {
 	return "report"
+}
+
+func (r *Filter) GetFilterName() string {
+	return r.chainName
 }
 
 func (r *Filter) IsFinal() bool {

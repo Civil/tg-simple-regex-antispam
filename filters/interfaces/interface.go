@@ -10,6 +10,7 @@ type FilteringRule interface {
 	Score(*telego.Message) int
 	IsStateful() bool
 	GetName() string
+	GetFilterName() string
 	IsFinal() bool
 }
 

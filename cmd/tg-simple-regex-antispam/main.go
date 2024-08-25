@@ -118,7 +118,7 @@ func main() {
 
 						}
 
-						statefulFilter, err := f(logger, banDB, filter.Arguments, filteringRules, actionsObjs)
+						statefulFilter, err := f(logger, filter.FilterName, banDB, tbot.GetBot(), filter.Arguments, filteringRules, actionsObjs)
 						if err != nil {
 							logger.Error("error initializing stateful filter", zap.Error(err))
 							return err

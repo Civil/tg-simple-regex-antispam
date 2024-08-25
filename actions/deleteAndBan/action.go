@@ -2,6 +2,7 @@ package deleteAndBan
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -17,6 +18,7 @@ type Action struct {
 	bot    *telego.Bot
 
 	cleanState bool
+	dryRun     bool
 }
 
 func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error {
@@ -26,17 +28,49 @@ func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID
 			return err
 		}
 	}
-	req := &telego.BanChatMemberParams{
-		UserID: userID,
-	}
-	req = req.WithChatID(chatID)
-	err := r.bot.BanChatMember(req)
-	if err != nil {
-		return err
+	r.logger.Debug("applying action", zap.Any("action", r))
+	if r.dryRun {
+		r.logger.Debug("applying action in dry run mode")
+		sendMessageParams := &telego.SendMessageParams{
+			ChatID: chatID,
+			Text:   fmt.Sprintf("ban conditions for user with id=%v has been met, but dryRun is enabled", userID),
+			ReplyParameters: &telego.ReplyParameters{
+				MessageID: int(messageIDs[0]),
+			},
+		}
+
+		_, err := r.bot.SendMessage(sendMessageParams)
+		if err != nil {
+			r.logger.Error("failed to send dryRun message", zap.Int64("userID", userID))
+			return err
+		}
+	} else {
+		r.logger.Debug("applying action in normal mode")
+		req := &telego.BanChatMemberParams{
+			UserID: userID,
+		}
+		req = req.WithChatID(chatID)
+		err := r.bot.BanChatMember(req)
+		if err != nil {
+			return err
+		}
+
+		msgIds := make([]int, 0, len(messageIDs))
+		for _, messageID := range messageIDs {
+			msgIds = append(msgIds, int(messageID))
+		}
+		deleteParams := &telego.DeleteMessagesParams{
+			ChatID:     chatID,
+			MessageIDs: msgIds,
+		}
+		err = r.bot.DeleteMessages(deleteParams)
+		if err != nil {
+			return err
+		}
 	}
 
 	if r.cleanState {
-		err = callback.RemoveState(userID)
+		err := callback.RemoveState(userID)
 		if err != nil {
 			r.logger.Error("failed to remove state", zap.Int64("userID", userID), zap.Error(err))
 			return nil
@@ -53,13 +87,18 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *telego.Message)
 }
 
 func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
-	cleanState, err := config2.GetOptionBoolWithDefault(config, "cleanState", true)
+	cleanState, err := config2.GetOptionBoolWithDefault(config, "cleanState", false)
+	if err != nil {
+		return nil, err
+	}
+	dryRyn, err := config2.GetOptionBoolWithDefault(config, "dryRun", true)
 	if err != nil {
 		return nil, err
 	}
 	return &Action{
 		logger:     logger,
 		bot:        bot,
+		dryRun:     dryRyn,
 		cleanState: cleanState,
 	}, nil
 }

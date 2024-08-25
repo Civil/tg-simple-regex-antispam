@@ -30,6 +30,10 @@ func (r *Filter) GetName() string {
 	return "regex"
 }
 
+func (r *Filter) GetFilterName() string {
+	return ""
+}
+
 func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }

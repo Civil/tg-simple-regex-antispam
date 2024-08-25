@@ -18,6 +18,7 @@ import (
 )
 
 type Filter struct {
+	chainName      string
 	n              int
 	logger         *zap.Logger
 	filteringRules []interfaces.FilteringRule
@@ -38,7 +39,7 @@ var (
 	ErrNIsZero       = errors.New("n cannot be equal to 0")
 )
 
-func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]any,
+func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.Bot, config map[string]any,
 	filteringRules []interfaces.FilteringRule, actions []actions.Action,
 ) (interfaces.StatefulFilter, error) {
 	var stateDir string
@@ -70,7 +71,11 @@ func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]any,
 	}
 
 	f := &Filter{
-		logger:         logger.With(zap.String("filter", "checkNevents")),
+		logger: logger.With(
+			zap.String("filter", chainName),
+			zap.String("filter_type", "checkNevents"),
+		),
+		chainName:      chainName,
 		stateDir:       stateDir,
 		bannedUsers:    banDB,
 		filteringRules: filteringRules,
@@ -193,6 +198,10 @@ func (r *Filter) Score(msg *telego.Message) int {
 
 func (r *Filter) IsStateful() bool {
 	return true
+}
+
+func (r *Filter) GetFilterName() string {
+	return r.chainName
 }
 
 func (r *Filter) GetName() string {

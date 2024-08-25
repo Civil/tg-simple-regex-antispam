@@ -5,7 +5,6 @@ import (
 
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
-	tu "github.com/mymmrac/telego/telegoutil"
 	"go.uber.org/zap"
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
@@ -41,43 +40,25 @@ func (t *Telego) Start() {
 	defer bh.Stop()
 
 	bh.HandleMessage(func(bot *telego.Bot, message telego.Message) {
-		chatID := tu.ID(message.Chat.ID)
 		userID := message.From.ID
 		logger := t.logger.With(
 			zap.Int64("chat_id", message.Chat.ID),
 			zap.Int64("from_user_id", userID),
 		)
-		logger.Info("got message", zap.Any("message", message))
-		if logger.Level().Enabled(zap.DebugLevel) {
-			logger.Debug("message content", zap.Any("message", message))
-			_, err := bot.SendMessage(
-				tu.Messagef(chatID, "got a message that have message_id=%d, type(media_group_id)=%T media_group_id=%+v\n",
-					message.MessageID, message.MediaGroupID,
-					message.MediaGroupID),
-			)
-			if err != nil {
-				logger.Error("error sending metadata", zap.Error(err))
-			}
-			newMsgId, err := bot.CopyMessage(
-				tu.CopyMessage(chatID, chatID, message.MessageID),
-			)
-			if err != nil {
-				logger.Error("error copying message", zap.Error(err))
-				return
-			}
-			logger.Debug("message copied", zap.Int("new_message_id", newMsgId.MessageID))
-		}
+		logger.Debug("got message", zap.Any("message", message))
 		for _, f := range *t.filters {
-			logger.Info("applying filter",
-				zap.String("filter_name", f.GetName()),
+			logger.Debug("applying filter",
+				zap.String("filter_name", f.GetFilterName()),
+				zap.String("filter_type", f.GetName()),
 			)
 			score := f.Score(&message)
 			if score > 0 {
 				logger.Info("message got scored",
 					zap.Int("score", score),
+					zap.Any("message", message),
 				)
 				if score >= 100 && f.IsFinal() {
-					logger.Info("stop scoring, as")
+					logger.Info("stop scoring")
 					break
 				}
 			}
