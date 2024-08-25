@@ -19,7 +19,6 @@ import (
 )
 
 type Filter struct {
-	n      int
 	logger *zap.Logger
 
 	stateDir string
@@ -107,7 +106,7 @@ func (r *Filter) RemoveState(userID int64) error {
 		})
 }
 
-func (r *Filter) Score(msg telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) int {
 	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
 		return 0
 	}
@@ -115,17 +114,17 @@ func (r *Filter) Score(msg telego.Message) int {
 		r.logger.Debug("message does not have a reply")
 		return 0
 	}
-	msg = *msg.ReplyToMessage
-	userID := msg.From.ID
-	actualState, err := r.getState(userID)
+	reportedMsg := msg.ReplyToMessage
+	stateKey := int64(reportedMsg.MessageID)
+	actualState, err := r.getState(stateKey)
 	if err != nil || actualState == nil || len(actualState.MessageIds) == 0 {
 		r.logger.Debug("failed to get state, creating a clean one",
-			zap.Int64("userID", userID),
+			zap.Int("messageID", reportedMsg.MessageID),
 			zap.Error(err),
 		)
 		actualState = &state.State{
 			Verified:   false,
-			MessageIds: []int64{int64(msg.MessageID)},
+			MessageIds: []int64{int64(reportedMsg.MessageID)},
 			LastUpdate: timestamppb.Now(),
 		}
 	}
@@ -136,35 +135,28 @@ func (r *Filter) Score(msg telego.Message) int {
 		return -1
 	}
 
-	actualState.MessageIds = append(actualState.MessageIds, int64(msg.MessageID))
-	actualState.LastUpdate = timestamppb.Now()
-
-	if len(actualState.MessageIds) >= r.n {
-		actualState.Verified = true
-		actualState.MessageIds = nil
-	}
-	err = r.setState(userID, actualState)
-	if err != nil {
-		r.logger.Error("failed to set new state",
-			zap.Int64("userID", userID),
-			zap.Any("new_state", actualState),
-			zap.Error(err),
-		)
-	}
-
 	r.logger.Debug("applying actions...")
 	for _, action := range r.actions {
 		r.logger.Debug("trying to apply action",
 			zap.Any("message_ids", actualState.MessageIds),
-			zap.Any("user_id", userID),
 			zap.Any("action", action),
 		)
-		err = action.ApplyToMessage(r, msg)
+		err = action.ApplyToMessage(r, reportedMsg)
 		if err != nil {
 			r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
 			return 100
 		}
 	}
+
+	actualState.Verified = true
+	err = r.setState(stateKey, actualState)
+	if err != nil {
+		r.logger.Error("failed to set new state",
+			zap.Any("new_state", actualState),
+			zap.Error(err),
+		)
+	}
+
 	return 100
 }
 

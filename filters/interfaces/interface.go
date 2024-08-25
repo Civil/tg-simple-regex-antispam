@@ -7,7 +7,7 @@ import (
 )
 
 type FilteringRule interface {
-	Score(telego.Message) int
+	Score(*telego.Message) int
 	IsStateful() bool
 	GetName() string
 	IsFinal() bool

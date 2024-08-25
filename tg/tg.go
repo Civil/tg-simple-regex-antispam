@@ -71,7 +71,7 @@ func (t *Telego) Start() {
 			logger.Info("applying filter",
 				zap.String("filter_name", f.GetName()),
 			)
-			score := f.Score(message)
+			score := f.Score(&message)
 			if score > 0 {
 				logger.Info("message got scored",
 					zap.Int("score", score),

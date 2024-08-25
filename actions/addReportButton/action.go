@@ -26,7 +26,7 @@ func (r *Action) Apply(_ interfaces2.StatefulFilter, _ telego.ChatID, _ []int64,
 	return ErrNotSupported
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, message telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, message *telego.Message) error {
 	r.logger.Debug("adding report button to message",
 		zap.Any("message", message),
 		zap.Any("chat", message.Chat),

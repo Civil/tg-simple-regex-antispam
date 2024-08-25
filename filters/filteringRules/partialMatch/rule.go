@@ -16,7 +16,7 @@ type Filter struct {
 	isFinal       bool
 }
 
-func (r *Filter) Score(msg telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) int {
 	if strings.Contains(msg.Caption, r.partialMatch) || strings.Contains(msg.Text, r.partialMatch) {
 		return 100
 	}

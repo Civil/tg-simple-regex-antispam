@@ -117,7 +117,7 @@ func (r *Filter) RemoveState(userID int64) error {
 		})
 }
 
-func (r *Filter) Score(msg telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) int {
 	userID := msg.From.ID
 	if r.bannedUsers.IsBanned(userID) {
 		return 100
