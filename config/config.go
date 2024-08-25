@@ -68,7 +68,7 @@ func (c *Config) FillDefaults() error {
 		c.BannedDBConfig = map[string]any{}
 	}
 
-	if c.BannedDBConfig["state_dir"] == "" {
+	if c.BannedDBConfig["state_dir"] == nil {
 		c.BannedDBConfig["state_dir"] = c.DatabaseStateDirectory + "/BannedDB"
 	}
 
@@ -117,7 +117,7 @@ func SampleConfig() *Config {
 			},
 			StatelessFilters: []StatelessFilteringRules{
 				{
-					Name:       "partial_match",
+					Name:       "partialMatch",
 					FilterName: "match bad substring",
 					Arguments: map[string]any{
 						"match":         "bad_substring",

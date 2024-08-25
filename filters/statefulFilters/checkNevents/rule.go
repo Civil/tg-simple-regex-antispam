@@ -59,7 +59,7 @@ func New(logger *zap.Logger, banDB bannedDB.BanDB, config map[string]any,
 		return nil, ErrNIsZero
 	}
 
-	isFinal, err := config2.GetOptionBool(config, "isFinal")
+	isFinal, err := config2.GetOptionBoolWithDefault(config, "isFinal", false)
 	if err != nil {
 		return nil, err
 	}

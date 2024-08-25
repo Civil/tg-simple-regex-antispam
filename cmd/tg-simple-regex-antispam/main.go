@@ -67,7 +67,7 @@ func main() {
 					for _, filter := range cfg.StatefulFilters {
 						f, err := filters.GetStatefulFilter(filter.Name)
 						if err != nil {
-							logger.Error("error creating stateful filter", zap.Error(err))
+							logger.Error("error creating stateful filter", zap.String("name", filter.Name), zap.Error(err))
 							return err
 						}
 

@@ -9,14 +9,17 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
 type Action struct {
 	logger *zap.Logger
 	bot    *telego.Bot
+
+	cleanState bool
 }
 
-func (r *Action) Apply(_ interfaces2.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error {
+func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error {
 	for _, messageID := range messageIDs {
 		err := r.bot.DeleteMessage(tu.Delete(chatID, int(messageID)))
 		if err != nil {
@@ -31,6 +34,15 @@ func (r *Action) Apply(_ interfaces2.StatefulFilter, chatID telego.ChatID, messa
 	if err != nil {
 		return err
 	}
+
+	if r.cleanState {
+		err = callback.RemoveState(userID)
+		if err != nil {
+			r.logger.Error("failed to remove state", zap.Int64("userID", userID), zap.Error(err))
+			return nil
+		}
+	}
+
 	return nil
 }
 
@@ -41,10 +53,14 @@ func (r *Action) ApplyToMessage(_ telego.Message) error {
 }
 
 func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
-	_ = config
+	cleanState, err := config2.GetOptionBoolWithDefault(config, "cleanState", true)
+	if err != nil {
+		return nil, err
+	}
 	return &Action{
-		logger: logger,
-		bot:    bot,
+		logger:     logger,
+		bot:        bot,
+		cleanState: cleanState,
 	}, nil
 }
 

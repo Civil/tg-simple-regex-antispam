@@ -55,7 +55,7 @@ func New(config map[string]any) (interfaces.FilteringRule, error) {
 		return nil, ErrRegexpEmpty
 	}
 
-	isFinal, err := config2.GetOptionBool(config, "isFinal")
+	isFinal, err := config2.GetOptionBoolWithDefault(config, "isFinal", false)
 	if err != nil {
 		return nil, err
 	}
