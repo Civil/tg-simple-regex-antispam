@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/mymmrac/telego"
 	"go.uber.org/zap"
@@ -25,7 +26,11 @@ func (r *Action) Apply(_ interfaces2.StatefulFilter, _ telego.ChatID, _ []int64,
 	return ErrNotSupported
 }
 
-func (r *Action) ApplyToMessage(message telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, message telego.Message) error {
+	r.logger.Debug("adding report button to message",
+		zap.Any("message", message),
+		zap.Any("chat", message.Chat),
+	)
 	params := &telego.GetChatAdministratorsParams{
 		ChatID: message.Chat.ChatID(),
 	}
@@ -39,16 +44,23 @@ func (r *Action) ApplyToMessage(message telego.Message) error {
 	} else {
 		msgBuf.WriteString("User @" + message.From.Username + " reported a spam: ")
 	}
-	for i, admin := range admins {
-		if i != 0 {
+	firstAdmin := true
+	for _, admin := range admins {
+		adminUsername := admin.MemberUser().Username
+		if strings.HasSuffix(strings.ToLower(adminUsername), "bot") {
+			continue
+		}
+		if !firstAdmin {
 			msgBuf.WriteString(", ")
 		}
 		msgBuf.WriteRune('@')
-		msgBuf.WriteString(admin.MemberUser().Username)
+		msgBuf.WriteString(adminUsername)
+		firstAdmin = false
 	}
 
 	sendMessageParams := &telego.SendMessageParams{
-		Text: msgBuf.String(),
+		ChatID: message.Chat.ChatID(),
+		Text:   msgBuf.String(),
 		ReplyParameters: &telego.ReplyParameters{
 			MessageID: message.MessageID,
 		},

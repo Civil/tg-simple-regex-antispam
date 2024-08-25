@@ -48,7 +48,7 @@ func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID
 
 var ErrNotSupported = errors.New("not supported")
 
-func (r *Action) ApplyToMessage(_ telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ telego.Message) error {
 	return ErrNotSupported
 }
 

@@ -111,10 +111,15 @@ func (r *Filter) Score(msg telego.Message) int {
 	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
 		return 0
 	}
+	if msg.ReplyToMessage == nil {
+		r.logger.Debug("message does not have a reply")
+		return 0
+	}
+	msg = *msg.ReplyToMessage
 	userID := msg.From.ID
 	actualState, err := r.getState(userID)
 	if err != nil || actualState == nil || len(actualState.MessageIds) == 0 {
-		r.logger.Debug("failed to get state",
+		r.logger.Debug("failed to get state, creating a clean one",
 			zap.Int64("userID", userID),
 			zap.Error(err),
 		)
@@ -127,6 +132,7 @@ func (r *Filter) Score(msg telego.Message) int {
 
 	// We already reported that message/user
 	if actualState.Verified {
+		r.logger.Debug("message/user already reported")
 		return -1
 	}
 
@@ -146,8 +152,14 @@ func (r *Filter) Score(msg telego.Message) int {
 		)
 	}
 
+	r.logger.Debug("applying actions...")
 	for _, action := range r.actions {
-		err = action.Apply(r, msg.Chat.ChatID(), actualState.MessageIds, userID)
+		r.logger.Debug("trying to apply action",
+			zap.Any("message_ids", actualState.MessageIds),
+			zap.Any("user_id", userID),
+			zap.Any("action", action),
+		)
+		err = action.ApplyToMessage(r, msg)
 		if err != nil {
 			r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
 			return 100
