@@ -82,6 +82,7 @@ func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.B
 		actions:        actions,
 		db:             badgerDB,
 		isFinal:        isFinal,
+		n:              n,
 	}
 	return f, nil
 }
@@ -123,25 +124,40 @@ func (r *Filter) RemoveState(userID int64) error {
 }
 
 func (r *Filter) Score(msg *telego.Message) int {
+	r.logger.Debug("scoring message", zap.Any("message", msg))
 	userID := msg.From.ID
+	logger := r.logger.With(zap.Int64("userID", userID))
 	if r.bannedUsers.IsBanned(userID) {
+		logger.Warn("user is banned, but somehow sends messages, deleting them")
+		err := r.applyActions(logger, msg.Chat.ChatID(), []int64{int64(msg.MessageID)}, userID)
+		if err != nil {
+			logger.Error("failed to apply actions", zap.Error(err))
+		}
 		return 100
 	}
+
 	actualState, err := r.getState(userID)
-	if err != nil || actualState == nil || len(actualState.MessageIds) == 0 {
-		r.logger.Debug("failed to get state",
-			zap.Int64("userID", userID),
+	if err != nil {
+		logger.Error("failed to get state", zap.Error(err))
+		actualState = &state.State{
+			Verified:   false,
+			MessageIds: []int64{},
+			LastUpdate: timestamppb.Now(),
+		}
+	} else if actualState == nil || (!actualState.Verified && len(actualState.MessageIds) == 0) {
+		logger.Debug("state is empty, creating an empty one",
 			zap.Error(err),
 		)
 		actualState = &state.State{
 			Verified:   false,
-			MessageIds: []int64{int64(msg.MessageID)},
+			MessageIds: []int64{},
 			LastUpdate: timestamppb.Now(),
 		}
 	}
 
 	// We already verified that user
 	if actualState.Verified {
+		logger.Debug("user is not a spammer, verified")
 		return 0
 	}
 
@@ -149,51 +165,62 @@ func (r *Filter) Score(msg *telego.Message) int {
 	actualState.LastUpdate = timestamppb.Now()
 
 	maxScore := 0
+	// Checking for the filters to match the message
 	for _, filter := range r.filteringRules {
 		score := filter.Score(msg)
 		if score > maxScore {
 			maxScore = score
-			if maxScore == 100 {
-				// We don't care about State of a spammer, but we need to track if they are banned (for some time)
-				err = r.bannedUsers.BanUser(userID)
-				if err != nil {
-					r.logger.Error("failed to ban user", zap.Int64("userID", userID), zap.Error(err))
-					return maxScore
-				}
-
-				for _, action := range r.actions {
-					err = action.Apply(r, msg.Chat.ChatID(), actualState.MessageIds, userID)
-					if err != nil {
-						r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
-						return maxScore
-					}
-				}
-
-				err = r.RemoveState(userID)
-				if err != nil {
-					r.logger.Error("failed to remove state", zap.Int64("userID", userID), zap.Error(err))
-					return maxScore
-				}
-				return maxScore
+			if filter.IsFinal() {
+				break
 			}
 		}
 	}
-	if maxScore > 0 {
+	if maxScore == 100 {
+		// We don't care about State of a spammer, but we need to track if they are banned (at least for some time)
+		logger.Debug("user is a spammer, banning them")
+		err = r.bannedUsers.BanUser(userID)
+		if err != nil {
+			logger.Error("failed to ban user", zap.Error(err))
+			return maxScore
+		}
+
+		err = r.applyActions(logger, msg.Chat.ChatID(), actualState.MessageIds, userID)
+		if err != nil {
+			logger.Error("failed to apply actions", zap.Error(err))
+		}
+
+		err = r.RemoveState(userID)
+		if err != nil {
+			logger.Error("failed to remove state", zap.Error(err))
+			return maxScore
+		}
 		return maxScore
 	}
+	logger.Debug("message verified, updating state")
 	if len(actualState.MessageIds) >= r.n {
+		logger.Debug("reached threshold, marking user as verified", zap.Int("n", r.n))
 		actualState.Verified = true
 		actualState.MessageIds = nil
 	}
 	err = r.setState(userID, actualState)
 	if err != nil {
-		r.logger.Error("failed to set new state",
-			zap.Int64("userID", userID),
+		logger.Error("failed to set new state",
 			zap.Any("new_state", actualState),
 			zap.Error(err),
 		)
 	}
-	return 0
+	return maxScore
+}
+
+func (r *Filter) applyActions(logger *zap.Logger, ChatID telego.ChatID, messageIds []int64, userID int64) error {
+	for _, action := range r.actions {
+		err := action.Apply(r, ChatID, messageIds, userID)
+		if err != nil {
+			logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Filter) IsStateful() bool {

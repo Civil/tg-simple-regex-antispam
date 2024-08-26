@@ -3,6 +3,7 @@ package filters
 import (
 	"errors"
 
+	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/isForward"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/partialMatch"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/regex"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
@@ -15,10 +16,12 @@ var (
 	supportedFilteringRules = map[string]interfaces.InitFunc{
 		"regex":        regex.New,
 		"partialMatch": partialMatch.New,
+		"isForward":    isForward.New,
 	}
 	supportedFilteringRulesHelp = map[string]interfaces.HelpFunc{
 		"regex":        regex.Help,
 		"partialMatch": partialMatch.Help,
+		"isForward":    isForward.Help,
 	}
 )
 
