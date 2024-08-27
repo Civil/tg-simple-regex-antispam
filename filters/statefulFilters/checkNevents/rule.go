@@ -12,7 +12,7 @@ import (
 	actions "github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
-	"github.com/Civil/tg-simple-regex-antispam/filters/statefulFilters/state"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/state"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
@@ -141,7 +141,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 		logger.Error("failed to get state", zap.Error(err))
 		actualState = &state.State{
 			Verified:   false,
-			MessageIds: []int64{},
+			MessageIds: make(map[int64]bool),
 			LastUpdate: timestamppb.Now(),
 		}
 	} else if actualState == nil || (!actualState.Verified && len(actualState.MessageIds) == 0) {
@@ -150,7 +150,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 		)
 		actualState = &state.State{
 			Verified:   false,
-			MessageIds: []int64{},
+			MessageIds: make(map[int64]bool),
 			LastUpdate: timestamppb.Now(),
 		}
 	}
@@ -161,7 +161,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 		return 0
 	}
 
-	actualState.MessageIds = append(actualState.MessageIds, int64(msg.MessageID))
+	actualState.MessageIds[int64(msg.MessageID)] = true
 	actualState.LastUpdate = timestamppb.Now()
 
 	maxScore := 0
@@ -184,7 +184,12 @@ func (r *Filter) Score(msg *telego.Message) int {
 			return maxScore
 		}
 
-		err = r.applyActions(logger, msg.Chat.ChatID(), actualState.MessageIds, userID)
+		messageIds := make([]int64, 0, len(actualState.MessageIds))
+		for id := range actualState.MessageIds {
+			messageIds = append(messageIds, id)
+		}
+
+		err = r.applyActions(logger, msg.Chat.ChatID(), messageIds, userID)
 		if err != nil {
 			logger.Error("failed to apply actions", zap.Error(err))
 		}

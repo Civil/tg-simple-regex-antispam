@@ -13,7 +13,7 @@ import (
 	actions "github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
-	"github.com/Civil/tg-simple-regex-antispam/filters/statefulFilters/state"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/state"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
@@ -131,9 +131,10 @@ func (r *Filter) Score(msg *telego.Message) int {
 		)
 		actualState = &state.State{
 			Verified:   false,
-			MessageIds: []int64{int64(reportedMsg.MessageID)},
+			MessageIds: make(map[int64]bool),
 			LastUpdate: timestamppb.Now(),
 		}
+		actualState.MessageIds[stateKey] = true
 	}
 
 	// We already reported that message/user

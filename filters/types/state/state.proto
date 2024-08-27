@@ -6,6 +6,6 @@ option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/statefulF
 
 message State {
   bool verified = 1;
-  repeated int64 message_ids = 2;
+  map<int64, bool> message_ids = 2;
   google.protobuf.Timestamp last_update = 3;
 }
