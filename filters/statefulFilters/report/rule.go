@@ -13,7 +13,7 @@ import (
 	actions "github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
-	"github.com/Civil/tg-simple-regex-antispam/filters/types/state"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/checkNeventsState"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
@@ -77,7 +77,7 @@ func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot
 	return f, nil
 }
 
-func (r *Filter) setState(userID int64, s *state.State) error {
+func (r *Filter) setState(userID int64, s *checkNeventsState.State) error {
 	b, err := proto.Marshal(s)
 	if err != nil {
 		return err
@@ -88,8 +88,8 @@ func (r *Filter) setState(userID int64, s *state.State) error {
 		})
 }
 
-func (r *Filter) getState(userID int64) (*state.State, error) {
-	var s state.State
+func (r *Filter) getState(userID int64) (*checkNeventsState.State, error) {
+	var s checkNeventsState.State
 	err := r.db.View(
 		func(txn *badger.Txn) error {
 			item, err := txn.Get(badgerHelper.UserIDToKey(userID))
@@ -129,7 +129,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 			zap.Int("messageID", reportedMsg.MessageID),
 			zap.Error(err),
 		)
-		actualState = &state.State{
+		actualState = &checkNeventsState.State{
 			Verified:   false,
 			MessageIds: make(map[int64]bool),
 			LastUpdate: timestamppb.Now(),

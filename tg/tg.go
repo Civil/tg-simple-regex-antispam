@@ -24,6 +24,32 @@ type Telego struct {
 	filters *[]interfaces.StatefulFilter
 }
 
+func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
+	userID := message.From.ID
+	logger := t.logger.With(
+		zap.Int64("chat_id", message.Chat.ID),
+		zap.Int64("from_user_id", userID),
+	)
+	logger.Debug("got message", zap.Any("message", message))
+	for _, f := range *t.filters {
+		logger.Debug("applying filter",
+			zap.String("filter_name", f.GetFilterName()),
+			zap.String("filter_type", f.GetName()),
+		)
+		score := f.Score(&message)
+		if score > 0 {
+			logger.Info("message got scored",
+				zap.Int("score", score),
+				zap.Any("message", message),
+			)
+			if score >= 100 && f.IsFinal() {
+				logger.Info("stop scoring")
+				break
+			}
+		}
+	}
+}
+
 func (t *Telego) Start() {
 	t.logger.Info("starting telego...")
 	botUser, err := t.bot.GetMe()
@@ -39,32 +65,8 @@ func (t *Telego) Start() {
 	bh, _ := th.NewBotHandler(t.bot, updates)
 	defer bh.Stop()
 
-	bh.HandleMessage(func(bot *telego.Bot, message telego.Message) {
-		userID := message.From.ID
-		logger := t.logger.With(
-			zap.Int64("chat_id", message.Chat.ID),
-			zap.Int64("from_user_id", userID),
-		)
-		logger.Debug("got message", zap.Any("message", message))
-		for _, f := range *t.filters {
-			logger.Debug("applying filter",
-				zap.String("filter_name", f.GetFilterName()),
-				zap.String("filter_type", f.GetName()),
-			)
-			score := f.Score(&message)
-			if score > 0 {
-				logger.Info("message got scored",
-					zap.Int("score", score),
-					zap.Any("message", message),
-				)
-				if score >= 100 && f.IsFinal() {
-					logger.Info("stop scoring")
-					break
-				}
-			}
-		}
-
-	})
+	bh.HandleMessage(t.HandleMessages)
+	bh.HandleEditedMessage(t.HandleMessages)
 
 	t.logger.Info("telego initialized")
 	bh.Start()

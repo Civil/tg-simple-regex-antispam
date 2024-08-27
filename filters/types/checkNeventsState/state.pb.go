@@ -4,7 +4,7 @@
 // 	protoc        v5.27.3
 // source: state.proto
 
-package state
+package checkNeventsState
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

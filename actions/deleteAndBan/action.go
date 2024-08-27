@@ -22,13 +22,6 @@ type Action struct {
 }
 
 func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error {
-	for _, messageID := range messageIDs {
-		err := r.bot.DeleteMessage(tu.Delete(chatID, int(messageID)))
-		if err != nil {
-			return err
-		}
-	}
-	r.logger.Debug("applying action", zap.Any("action", r))
 	if r.dryRun {
 		r.logger.Debug("applying action in dry run mode")
 		sendMessageParams := &telego.SendMessageParams{
@@ -42,35 +35,42 @@ func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID
 		_, err := r.bot.SendMessage(sendMessageParams)
 		if err != nil {
 			r.logger.Error("failed to send dryRun message", zap.Int64("userID", userID))
-			return err
 		}
-	} else {
-		r.logger.Debug("applying action in normal mode")
-		req := &telego.BanChatMemberParams{
-			UserID: userID,
-		}
-		req = req.WithChatID(chatID)
-		err := r.bot.BanChatMember(req)
-		if err != nil {
-			return err
-		}
+		return err
+	}
 
-		msgIds := make([]int, 0, len(messageIDs))
-		for _, messageID := range messageIDs {
-			msgIds = append(msgIds, int(messageID))
-		}
-		deleteParams := &telego.DeleteMessagesParams{
-			ChatID:     chatID,
-			MessageIDs: msgIds,
-		}
-		err = r.bot.DeleteMessages(deleteParams)
+	r.logger.Debug("applying action in normal mode")
+	for _, messageID := range messageIDs {
+		err := r.bot.DeleteMessage(tu.Delete(chatID, int(messageID)))
 		if err != nil {
 			return err
 		}
 	}
 
+	req := &telego.BanChatMemberParams{
+		UserID: userID,
+	}
+	req = req.WithChatID(chatID)
+	err := r.bot.BanChatMember(req)
+	if err != nil {
+		return err
+	}
+
+	msgIds := make([]int, 0, len(messageIDs))
+	for _, messageID := range messageIDs {
+		msgIds = append(msgIds, int(messageID))
+	}
+	deleteParams := &telego.DeleteMessagesParams{
+		ChatID:     chatID,
+		MessageIDs: msgIds,
+	}
+	err = r.bot.DeleteMessages(deleteParams)
+	if err != nil {
+		return err
+	}
+
 	if r.cleanState {
-		err := callback.RemoveState(userID)
+		err = callback.RemoveState(userID)
 		if err != nil {
 			r.logger.Error("failed to remove state", zap.Int64("userID", userID), zap.Error(err))
 			return nil
