@@ -69,7 +69,7 @@ func main() {
 					statefulFilters := make([]interfaces.StatefulFilter, 0)
 					statelessFilters := filters.GetFilteringRules()
 
-					tbot, err := tg.NewTelego(logger, cfg.TelegramToken, &statefulFilters)
+					tbot, err := tg.NewTelego(logger, cfg.TelegramToken, &statefulFilters, cfg.AdminIDs, banDB)
 					if err != nil {
 						logger.Error("error creating bot", zap.Error(err))
 						return err

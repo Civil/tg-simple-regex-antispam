@@ -78,6 +78,30 @@ func (r *BannedDB) IsBanned(userID int64) bool {
 	return exists
 }
 
+func (r *BannedDB) ListUserIDs() ([]int64, error) {
+	var userIDs []int64
+	err := r.db.View(
+		func(tx *badger.Txn) error {
+			opts := badger.DefaultIteratorOptions
+			opts.PrefetchValues = false
+			it := tx.NewIterator(opts)
+			defer it.Close()
+
+			for it.Rewind(); it.Valid(); it.Next() {
+				item := it.Item()
+				key := item.Key()
+				userID, err := badgerHelper.KeyToUserID(key)
+				if err != nil {
+					return err
+				}
+				userIDs = append(userIDs, userID)
+			}
+			return nil
+
+		})
+	return userIDs, err
+}
+
 func (r *BannedDB) LoadState() error {
 	return nil
 }
