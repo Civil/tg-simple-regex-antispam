@@ -133,9 +133,7 @@ func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 	logger.Debug("got message", zap.Any("message", message))
 	if strings.HasPrefix(message.Text, "/admin ") {
 		if _, ok := t.adminIDs[userID]; !ok {
-			logger.Warn("user is not admin", zap.Any("user_id", userID), zap.Any("message", message))
-			return
-		} else {
+			logger.Debug("user is not in list of extra super users, checking chat admins")
 			params := &telego.GetChatAdministratorsParams{
 				ChatID: message.Chat.ChatID(),
 			}
