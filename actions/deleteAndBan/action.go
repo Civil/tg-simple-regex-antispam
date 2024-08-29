@@ -11,6 +11,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
+	"github.com/Civil/tg-simple-regex-antispam/tg/helpers"
 )
 
 type Action struct {
@@ -19,6 +20,7 @@ type Action struct {
 
 	cleanState bool
 	dryRun     bool
+	deleteAll  bool
 }
 
 func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error {
@@ -47,13 +49,9 @@ func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID
 		}
 	}
 
-	req := &telego.BanChatMemberParams{
-		UserID: userID,
-	}
-	req = req.WithChatID(chatID)
-	err := r.bot.BanChatMember(req)
+	err := helpers.BanUser(r.bot, chatID, userID, r.deleteAll)
 	if err != nil {
-		return err
+		r.logger.Error("failed to ban user", zap.Int64("userID", userID), zap.Error(err))
 	}
 
 	msgIds := make([]int, 0, len(messageIDs))
@@ -95,11 +93,16 @@ func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces
 	if err != nil {
 		return nil, err
 	}
+	deleteAll, err := config2.GetOptionBoolWithDefault(config, "deleteAll", true)
+	if err != nil {
+		return nil, err
+	}
 	return &Action{
 		logger:     logger,
 		bot:        bot,
 		dryRun:     dryRyn,
 		cleanState: cleanState,
+		deleteAll:  deleteAll,
 	}, nil
 }
 

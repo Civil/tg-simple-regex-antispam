@@ -13,6 +13,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/tg/helpers"
 )
 
 type TgAPI interface {
@@ -33,7 +34,7 @@ type Telego struct {
 
 func (t *Telego) HandleBanDBMessages(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) {
 	logger.Debug("ban db command", zap.Strings("tokens", tokens))
-	switch tokens[0] {
+	switch strings.ToLower(tokens[0]) {
 	case "list":
 		list, err := t.banDB.ListUserIDs()
 		if err != nil {
@@ -45,7 +46,7 @@ func (t *Telego) HandleBanDBMessages(logger *zap.Logger, bot *telego.Bot, messag
 		for _, userID := range list {
 			buf.WriteString(fmt.Sprintf("%v\n", userID))
 		}
-		err = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
+		err = helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
 		if err != nil {
 			logger.Error("failed to send message", zap.Error(err))
 		}
@@ -63,13 +64,35 @@ func (t *Telego) HandleBanDBMessages(logger *zap.Logger, bot *telego.Bot, messag
 		err = t.banDB.UnbanUser(userIDInt)
 		if err != nil {
 			logger.Error("failed to unban user", zap.String("userID", userID), zap.Error(err))
-			_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+			_ = helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
 				fmt.Sprintf("cannot unban user: %s",
 					err.Error()))
 			return
 		}
-		_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+		_ = helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
 			fmt.Sprintf("user %v unbanned", userIDInt))
+	case "bannodel":
+		if len(tokens) < 2 {
+			logger.Warn("invalid command", zap.Strings("tokens", tokens))
+			return
+		}
+		userID := tokens[1]
+		userIDInt, err := strconv.ParseInt(userID, 10, 64)
+		if err != nil {
+			logger.Warn("invalid user id", zap.Strings("tokens", tokens), zap.Error(err))
+			return
+		}
+		err = t.banDB.BanUser(userIDInt)
+		if err != nil {
+			logger.Error("failed to ban user", zap.String("userID", userID), zap.Error(err))
+			_ = helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+				fmt.Sprintf("cannot ban user: %s",
+					err.Error()))
+			return
+		}
+		err = helpers.BanUser(bot, message.Chat.ChatID(), userIDInt, false)
+		_ = helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+			fmt.Sprintf("user %v banned", userIDInt))
 	case "ban":
 		if len(tokens) < 2 {
 			logger.Warn("invalid command", zap.Strings("tokens", tokens))
@@ -84,33 +107,31 @@ func (t *Telego) HandleBanDBMessages(logger *zap.Logger, bot *telego.Bot, messag
 		err = t.banDB.BanUser(userIDInt)
 		if err != nil {
 			logger.Error("failed to ban user", zap.String("userID", userID), zap.Error(err))
-			_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+			_ = helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
 				fmt.Sprintf("cannot ban user: %s",
 					err.Error()))
 			return
 		}
-		_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+		err = helpers.BanUser(bot, message.Chat.ChatID(), userIDInt, true)
+		_ = helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
 			fmt.Sprintf("user %v banned", userIDInt))
+	case "help":
+		buf := bytes.NewBuffer([]byte{})
+		buf.WriteString("Available commands:\n")
+		buf.WriteString(" `list` - list all banned users (IDs only)")
+		buf.WriteString(" `ban` - ban user by ID and delete all messages")
+		buf.WriteString(" `banNoDel` - ban user by ID but keep all messages")
+		buf.WriteString(" `unban` - unban user by ID")
+		buf.WriteString(" `help` - this help")
+
+		err := helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
+		if err != nil {
+			logger.Error("failed to send message", zap.Error(err))
+		}
 	default:
 		logger.Warn("unsupported command", zap.Strings("tokens", tokens))
 	}
 
-}
-
-func (t *Telego) sendMessage(bot *telego.Bot, chatID telego.ChatID, messageID *int, text string) error {
-	sendMessageParams := &telego.SendMessageParams{
-		ChatID: chatID,
-		Text:   text,
-	}
-	if messageID != nil {
-		sendMessageParams.ReplyParameters = &telego.ReplyParameters{
-			MessageID: *messageID,
-		}
-	}
-	_, err := bot.SendMessage(
-		sendMessageParams,
-	)
-	return err
 }
 
 func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, message *telego.Message) {
@@ -118,7 +139,7 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 	tokens := strings.Split(message.Text, " ")
 	if len(tokens) < 2 {
 		logger.Warn("invalid command", zap.Any("message", message))
-		err := t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("invalid command: %v",
+		err := helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("invalid command: %v",
 			message.Text))
 		if err != nil {
 			logger.Error("failed to send message", zap.Error(err))
@@ -131,7 +152,8 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 		t.HandleBanDBMessages(logger, bot, message, tokens[2:])
 	default:
 		logger.Warn("unsupported command", zap.Any("message", message))
-		err := t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("unsupported command: %v", message.Text))
+		err := helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+			fmt.Sprintf("unsupported command: %v", message.Text))
 		if err != nil {
 			logger.Error("failed to send message", zap.Error(err))
 		}
