@@ -45,16 +45,7 @@ func (t *Telego) HandleBanDBMessages(logger *zap.Logger, bot *telego.Bot, messag
 		for _, userID := range list {
 			buf.WriteString(fmt.Sprintf("%v\n", userID))
 		}
-		sendMessageParams := &telego.SendMessageParams{
-			ChatID: message.Chat.ChatID(),
-			ReplyParameters: &telego.ReplyParameters{
-				MessageID: message.MessageID,
-			},
-			Text: buf.String(),
-		}
-		_, err = bot.SendMessage(
-			sendMessageParams,
-		)
+		err = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
 		if err != nil {
 			logger.Error("failed to send message", zap.Error(err))
 		}
@@ -72,12 +63,54 @@ func (t *Telego) HandleBanDBMessages(logger *zap.Logger, bot *telego.Bot, messag
 		err = t.banDB.UnbanUser(userIDInt)
 		if err != nil {
 			logger.Error("failed to unban user", zap.String("userID", userID), zap.Error(err))
+			_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+				fmt.Sprintf("cannot unban user: %s",
+					err.Error()))
 			return
 		}
+		_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+			fmt.Sprintf("user %v unbanned", userIDInt))
+	case "ban":
+		if len(tokens) < 2 {
+			logger.Warn("invalid command", zap.Strings("tokens", tokens))
+			return
+		}
+		userID := tokens[1]
+		userIDInt, err := strconv.ParseInt(userID, 10, 64)
+		if err != nil {
+			logger.Warn("invalid user id", zap.Strings("tokens", tokens), zap.Error(err))
+			return
+		}
+		err = t.banDB.BanUser(userIDInt)
+		if err != nil {
+			logger.Error("failed to ban user", zap.String("userID", userID), zap.Error(err))
+			_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+				fmt.Sprintf("cannot ban user: %s",
+					err.Error()))
+			return
+		}
+		_ = t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+			fmt.Sprintf("user %v banned", userIDInt))
 	default:
 		logger.Warn("unsupported command", zap.Strings("tokens", tokens))
 	}
 
+}
+
+func (t *Telego) sendMessage(bot *telego.Bot, chatID telego.ChatID, messageID *int, text string) error {
+	sendMessageParams := &telego.SendMessageParams{
+		ChatID: chatID,
+		Text:   text,
+	}
+	if messageID != nil {
+		sendMessageParams.ReplyParameters = &telego.ReplyParameters{
+			MessageID: *messageID,
+		}
+	}
+	_, err := bot.SendMessage(
+		sendMessageParams,
+	)
+	return err
 }
 
 func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, message *telego.Message) {
@@ -85,17 +118,8 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 	tokens := strings.Split(message.Text, " ")
 	if len(tokens) < 2 {
 		logger.Warn("invalid command", zap.Any("message", message))
-		sendMessageParams := &telego.SendMessageParams{
-			ChatID: message.Chat.ChatID(),
-			Text:   fmt.Sprintf("invalid command: %v", message.Text),
-			ReplyParameters: &telego.ReplyParameters{
-				MessageID: message.MessageID,
-			},
-		}
-
-		_, err := bot.SendMessage(
-			sendMessageParams,
-		)
+		err := t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("invalid command: %v",
+			message.Text))
 		if err != nil {
 			logger.Error("failed to send message", zap.Error(err))
 		}
@@ -107,17 +131,7 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 		t.HandleBanDBMessages(logger, bot, message, tokens[2:])
 	default:
 		logger.Warn("unsupported command", zap.Any("message", message))
-		sendMessageParams := &telego.SendMessageParams{
-			ChatID: message.Chat.ChatID(),
-			Text:   fmt.Sprintf("unsupported command: %v", message.Text),
-			ReplyParameters: &telego.ReplyParameters{
-				MessageID: message.MessageID,
-			},
-		}
-
-		_, err := bot.SendMessage(
-			sendMessageParams,
-		)
+		err := t.sendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("unsupported command: %v", message.Text))
 		if err != nil {
 			logger.Error("failed to send message", zap.Error(err))
 		}
@@ -145,12 +159,12 @@ func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 			for _, admin := range chatAdmins {
 				if admin.MemberUser().ID == userID {
 					ok = true
-					logger.Info("user is chat admin", zap.Any("user_id", userID))
+					logger.Debug("user is chat admin", zap.Any("user_id", userID))
 					break
 				}
 			}
 			if !ok {
-				logger.Warn("user is not admin", zap.Any("user_id", userID), zap.Any("message", message))
+				logger.Warn("user is not admin or chat admin", zap.Any("user_id", userID), zap.Any("message", message))
 				return
 			}
 		}
