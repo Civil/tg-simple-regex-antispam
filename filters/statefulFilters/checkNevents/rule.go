@@ -259,3 +259,11 @@ func (r *Filter) SaveState() error {
 func (r *Filter) LoadState() error {
 	return nil
 }
+
+func (r *Filter) TGAdminPrefix() string {
+	return ""
+}
+
+func (r *Filter) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
+	return nil
+}

@@ -148,8 +148,11 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 	}
 
 	switch tokens[1] {
-	case "bandb":
-		t.HandleBanDBMessages(logger, bot, message, tokens[2:])
+	case t.banDB.TGAdminPrefix():
+		err := t.banDB.HandleTGCommands(logger, bot, message, tokens)
+		if err != nil {
+			logger.Error("failed to handle ban db command", zap.Error(err))
+		}
 	default:
 		logger.Warn("unsupported command", zap.Any("message", message))
 		err := helpers.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
