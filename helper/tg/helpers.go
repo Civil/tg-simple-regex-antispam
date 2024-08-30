@@ -1,4 +1,4 @@
-package helpers
+package tg
 
 import (
 	"github.com/mymmrac/telego"

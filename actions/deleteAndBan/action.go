@@ -11,7 +11,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
-	"github.com/Civil/tg-simple-regex-antispam/tg/helpers"
+	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
 type Action struct {
@@ -49,7 +49,7 @@ func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID
 		}
 	}
 
-	err := helpers.BanUser(r.bot, chatID, userID, r.deleteAll)
+	err := tg.BanUser(r.bot, chatID, userID, r.deleteAll)
 	if err != nil {
 		r.logger.Error("failed to ban user", zap.Int64("userID", userID), zap.Error(err))
 	}
