@@ -15,6 +15,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/filters/types/checkNeventsState"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
+	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
 type Filter struct {
@@ -32,6 +33,8 @@ type Filter struct {
 	db *badger.DB
 
 	isFinal bool
+
+	handlers map[string]tg.AdminCMDHandlerFunc
 }
 
 var (
@@ -261,6 +264,7 @@ func (r *Filter) LoadState() error {
 }
 
 func (r *Filter) TGAdminPrefix() string {
+	// return r.chainName
 	return ""
 }
 

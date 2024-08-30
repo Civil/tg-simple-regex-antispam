@@ -52,6 +52,7 @@ func New(logger *zap.Logger, config map[string]any) (BanDB, error) {
 		logger:   logger.With(zap.String("banDB", "bannedDB")),
 		stateDir: stateDir,
 		db:       badgerDB,
+		handlers: make(map[string]tg.AdminCMDHandlerFunc),
 	}
 	db.handlers = map[string]tg.AdminCMDHandlerFunc{
 		"list":     db.listCmd,
@@ -213,14 +214,14 @@ func (r *BannedDB) ban(logger *zap.Logger, bot *telego.Bot, message *telego.Mess
 		fmt.Sprintf("user %v banned", userIDInt))
 }
 
-func (r *BannedDB) helpCmd(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
+func (r *BannedDB) helpCmd(logger *zap.Logger, bot *telego.Bot, message *telego.Message, _ []string) error {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteString("Available commands:\n")
-	buf.WriteString(" `list` - list all banned users (IDs only)")
-	buf.WriteString(" `ban` - ban user by ID and delete all messages")
-	buf.WriteString(" `banNoDel` - ban user by ID but keep all messages")
-	buf.WriteString(" `unban` - unban user by ID")
-	buf.WriteString(" `help` - this help")
+	buf.WriteString(" - `list` - list all banned users (IDs only)\n")
+	buf.WriteString(" - `ban` - ban user by ID and delete all messages\n")
+	buf.WriteString(" - `banNoDel` - ban user by ID but keep all messages\n")
+	buf.WriteString(" - `unban` - unban user by ID\n")
+	buf.WriteString(" - `help` - this help\n")
 
 	err := tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
 	if err != nil {
@@ -230,10 +231,14 @@ func (r *BannedDB) helpCmd(logger *zap.Logger, bot *telego.Bot, message *telego.
 }
 
 func (r *BannedDB) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
-	logger.Debug("ban db command", zap.Strings("tokens", tokens))
+	logger.Debug("ban db command", zap.String("command", tokens[0]))
 	if h, ok := r.handlers[strings.ToLower(tokens[0])]; ok {
 		return h(logger, bot, message, tokens)
 	}
-	logger.Warn("unsupported command", zap.Strings("tokens", tokens))
+	supportedCommands := make([]string, 0, len(r.handlers))
+	for cmd := range r.handlers {
+		supportedCommands = append(supportedCommands, cmd)
+	}
+	logger.Warn("unsupported command", zap.Strings("tokens", tokens), zap.Strings("supported_commands", supportedCommands))
 	return stateful.ErrNotSupported
 }
