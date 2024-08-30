@@ -12,7 +12,7 @@ type Stateful interface {
 	LoadState() error
 	Close() error
 	TGAdminPrefix() string
-	HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error
+	HandleTGCommands(*zap.Logger, *telego.Bot, *telego.Message, []string) error
 }
 
 var (

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mymmrac/telego"
+	"go.uber.org/zap"
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
@@ -84,4 +85,12 @@ func New(config map[string]any) (interfaces.FilteringRule, error) {
 
 func Help() string {
 	return "partialMatch requires `match` parameter"
+}
+
+func (r *Filter) TGAdminPrefix() string {
+	return ""
+}
+
+func (r *Filter) HandleTGCommands(_ *zap.Logger, _ *telego.Bot, _ *telego.Message, _ []string) error {
+	return nil
 }

@@ -1,6 +1,7 @@
 package checkNevents
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/dgraph-io/badger/v4"
@@ -86,8 +87,35 @@ func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.B
 		db:             badgerDB,
 		isFinal:        isFinal,
 		n:              n,
+		handlers:       make(map[string]tg.AdminCMDHandlerFunc),
 	}
+
+	for _, filter := range f.filteringRules {
+		prefix := filter.TGAdminPrefix()
+		if prefix != "" {
+			f.handlers[prefix] = filter.HandleTGCommands
+		}
+	}
+
+	f.handlers[f.bannedUsers.TGAdminPrefix()] = f.bannedUsers.HandleTGCommands
+
+	f.handlers["listCmds"] = f.listAdminPrefixes
+
 	return f, nil
+}
+
+func (r *Filter) listAdminPrefixes(logger *zap.Logger, bot *telego.Bot, message *telego.Message, _ []string) error {
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString("Available admin prefiexes:\n\n")
+	for prefix := range r.handlers {
+		buf.WriteString("   " + prefix + "\n")
+	}
+
+	err := tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
+	if err != nil {
+		logger.Error("failed to send message", zap.Error(err))
+	}
+	return err
 }
 
 func (r *Filter) setState(userID int64, s *checkNeventsState.State) error {
