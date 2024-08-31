@@ -35,7 +35,7 @@ type Filter struct {
 
 	isFinal bool
 
-	handlers map[string]tg.AdminCMDHandlerFunc
+	tg.TGHaveAdminCommands
 }
 
 var (
@@ -46,9 +46,7 @@ var (
 func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.Bot, config map[string]any,
 	filteringRules []interfaces.FilteringRule, actions []actions.Action,
 ) (interfaces.StatefulFilter, error) {
-	var stateDir string
-	var err error
-	stateDir, err = config2.GetOptionString(config, "state_dir")
+	stateDir, err := config2.GetOptionString(config, "state_dir")
 	if err != nil {
 		return nil, err
 	}
@@ -87,19 +85,21 @@ func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.B
 		db:             badgerDB,
 		isFinal:        isFinal,
 		n:              n,
-		handlers:       make(map[string]tg.AdminCMDHandlerFunc),
+		TGHaveAdminCommands: tg.TGHaveAdminCommands{
+			Handlers: make(map[string]tg.AdminCMDHandlerFunc),
+		},
 	}
 
 	for _, filter := range f.filteringRules {
 		prefix := filter.TGAdminPrefix()
 		if prefix != "" {
-			f.handlers[prefix] = filter.HandleTGCommands
+			f.TGHaveAdminCommands.Handlers[prefix] = filter.HandleTGCommands
 		}
 	}
 
-	f.handlers[f.bannedUsers.TGAdminPrefix()] = f.bannedUsers.HandleTGCommands
+	f.TGHaveAdminCommands.Handlers[f.bannedUsers.TGAdminPrefix()] = f.bannedUsers.HandleTGCommands
 
-	f.handlers["listCmds"] = f.listAdminPrefixes
+	f.TGHaveAdminCommands.Handlers["listCmds"] = f.listAdminPrefixes
 
 	return f, nil
 }
@@ -107,7 +107,7 @@ func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.B
 func (r *Filter) listAdminPrefixes(logger *zap.Logger, bot *telego.Bot, message *telego.Message, _ []string) error {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteString("Available admin prefiexes:\n\n")
-	for prefix := range r.handlers {
+	for prefix := range r.TGHaveAdminCommands.Handlers {
 		buf.WriteString("   " + prefix + "\n")
 	}
 
@@ -292,10 +292,5 @@ func (r *Filter) LoadState() error {
 }
 
 func (r *Filter) TGAdminPrefix() string {
-	// return r.chainName
-	return ""
-}
-
-func (r *Filter) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
-	return nil
+	return r.chainName
 }

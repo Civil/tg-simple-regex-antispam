@@ -91,7 +91,7 @@ func main() {
 								return err
 							}
 
-							f, err := fInit(rule.Arguments)
+							f, err := fInit(rule.Arguments, rule.Name)
 							if err != nil {
 								logger.Error("error initializing filtering rule", zap.Error(err))
 								return err
@@ -126,6 +126,8 @@ func main() {
 						defer func() { _ = statefulFilter.Close() }()
 						statefulFilters = append(statefulFilters, statefulFilter)
 					}
+
+					tbot.UpdatePrefixes()
 
 					logger.Info("starting bot", zap.Any("config", cfg))
 

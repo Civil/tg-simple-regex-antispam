@@ -17,7 +17,7 @@ type FilteringRule interface {
 	HandleTGCommands(*zap.Logger, *telego.Bot, *telego.Message, []string) error
 }
 
-type InitFunc func(map[string]any) (FilteringRule, error)
+type InitFunc func(map[string]any, string) (FilteringRule, error)
 
 type HelpFunc func() string
 

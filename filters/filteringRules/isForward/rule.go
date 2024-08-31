@@ -9,7 +9,8 @@ import (
 )
 
 type Filter struct {
-	isFinal bool
+	chainName string
+	isFinal   bool
 }
 
 func (r *Filter) Score(msg *telego.Message) int {
@@ -35,14 +36,15 @@ func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }
 
-func New(config map[string]any) (interfaces.FilteringRule, error) {
+func New(config map[string]any, chainName string) (interfaces.FilteringRule, error) {
 	isFinal, err := config2.GetOptionBoolWithDefault(config, "isFinal", false)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Filter{
-		isFinal: isFinal,
+		chainName: chainName,
+		isFinal:   isFinal,
 	}, nil
 }
 

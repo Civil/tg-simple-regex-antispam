@@ -19,6 +19,7 @@ type TgAPI interface {
 	Start()
 	Stop()
 	GetBot() *telego.Bot
+	UpdatePrefixes()
 }
 
 type Telego struct {
@@ -54,15 +55,14 @@ func NewTelego(logger *zap.Logger, token string, filters *[]interfaces.StatefulF
 		handlers: make(map[string]tg.AdminCMDHandlerFunc),
 	}
 
-	for _, filter := range *t.filters {
+	for _, filter := range *filters {
+		logger.Info("registering filter", zap.String("filter", filter.GetFilterName()), zap.String("chain_name", filter.TGAdminPrefix()))
 		prefix := filter.TGAdminPrefix()
 		if prefix != "" {
 			t.handlers[prefix] = filter.HandleTGCommands
 		}
 	}
-
 	t.handlers[t.banDB.TGAdminPrefix()] = t.banDB.HandleTGCommands
-
 	t.handlers["listCmds"] = t.listAdminPrefixes
 
 	bot, err := telego.NewBot(t.token, telego.WithDefaultDebugLogger())
@@ -72,6 +72,32 @@ func NewTelego(logger *zap.Logger, token string, filters *[]interfaces.StatefulF
 	t.bot = bot
 
 	return t, nil
+}
+
+func (t *Telego) UpdatePrefixes() {
+	for _, filter := range *t.filters {
+		prefix := filter.TGAdminPrefix()
+		keys := make([]string, 0)
+		for k := range t.handlers {
+			if strings.HasPrefix(k, prefix) {
+				keys = append(keys, k)
+			}
+		}
+		t.logger.Debug("checking filter",
+			zap.String("filter", filter.GetFilterName()),
+			zap.String("filter_type", filter.GetName()),
+			zap.String("chain_name", prefix),
+			zap.Any("handlers", keys),
+		)
+
+		if prefix != "" {
+			t.logger.Debug("checking if filter was registered")
+			if _, ok := t.handlers[prefix]; !ok {
+				t.logger.Debug("registering filter", zap.String("filter", filter.GetFilterName()))
+				t.handlers[prefix] = filter.HandleTGCommands
+			}
+		}
+	}
 }
 
 func (t *Telego) listAdminPrefixes(logger *zap.Logger, bot *telego.Bot, message *telego.Message, _ []string) error {
@@ -102,9 +128,14 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 	}
 
 	if h, ok := t.handlers[tokens[1]]; ok {
-		err := h(logger, bot, message, tokens[2:])
+		var err error
+		if len(tokens) > 2 {
+			err = h(logger, bot, message, tokens[2:])
+		} else {
+			err = h(logger, bot, message, nil)
+		}
 		if err != nil {
-			logger.Error("failed to handle ban db command", zap.Error(err))
+			logger.Error("failed to handle command", zap.Error(err))
 		}
 		return
 	}

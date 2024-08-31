@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/mymmrac/telego"
 
@@ -22,7 +21,7 @@ type BannedDB struct {
 	stateDir string
 	db       *badger.DB
 
-	handlers map[string]tg.AdminCMDHandlerFunc
+	tg.TGHaveAdminCommands
 }
 
 var ErrRequiresStateDir = errors.New(
@@ -49,12 +48,12 @@ func New(logger *zap.Logger, config map[string]any) (BanDB, error) {
 	}
 
 	db := &BannedDB{
-		logger:   logger.With(zap.String("banDB", "bannedDB")),
-		stateDir: stateDir,
-		db:       badgerDB,
-		handlers: make(map[string]tg.AdminCMDHandlerFunc),
+		logger:              logger.With(zap.String("banDB", "bannedDB")),
+		stateDir:            stateDir,
+		db:                  badgerDB,
+		TGHaveAdminCommands: tg.TGHaveAdminCommands{},
 	}
-	db.handlers = map[string]tg.AdminCMDHandlerFunc{
+	db.TGHaveAdminCommands.Handlers = map[string]tg.AdminCMDHandlerFunc{
 		"list":     db.listCmd,
 		"unban":    db.unbanCmd,
 		"bannodel": db.bannodelCmd,
@@ -228,17 +227,4 @@ func (r *BannedDB) helpCmd(logger *zap.Logger, bot *telego.Bot, message *telego.
 		logger.Error("failed to send message", zap.Error(err))
 	}
 	return err
-}
-
-func (r *BannedDB) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
-	logger.Debug("ban db command", zap.String("command", tokens[0]))
-	if h, ok := r.handlers[strings.ToLower(tokens[0])]; ok {
-		return h(logger, bot, message, tokens)
-	}
-	supportedCommands := make([]string, 0, len(r.handlers))
-	for cmd := range r.handlers {
-		supportedCommands = append(supportedCommands, cmd)
-	}
-	logger.Warn("unsupported command", zap.Strings("tokens", tokens), zap.Strings("supported_commands", supportedCommands))
-	return stateful.ErrNotSupported
 }

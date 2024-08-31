@@ -12,6 +12,7 @@ import (
 )
 
 type Filter struct {
+	chainName     string
 	partialMatch  string
 	caseSensitive bool
 	isFinal       bool
@@ -44,19 +45,14 @@ var (
 	ErrRequiresMatchParam = errors.New(
 		"partialMatch filter requires `match` configuration parameter",
 	)
-	ErrFilterNotString      = errors.New("filter is not a string")
 	ErrMatchEmpty           = errors.New("`match` cannot be empty")
 	ErrCaseSensitiveNotBool = errors.New("case_sensitive is not a bool")
 )
 
-func New(config map[string]any) (interfaces.FilteringRule, error) {
-	filterI, ok := config["match"]
-	if !ok {
+func New(config map[string]any, chainName string) (interfaces.FilteringRule, error) {
+	filter, err := config2.GetOptionString(config, "match")
+	if err != nil {
 		return nil, ErrRequiresMatchParam
-	}
-	filter, ok := filterI.(string)
-	if !ok {
-		return nil, ErrFilterNotString
 	}
 	if filter == "" {
 		return nil, ErrMatchEmpty
@@ -77,6 +73,7 @@ func New(config map[string]any) (interfaces.FilteringRule, error) {
 	}
 
 	return &Filter{
+		chainName:     chainName,
 		partialMatch:  filter,
 		caseSensitive: caseSensitive,
 		isFinal:       isFinal,

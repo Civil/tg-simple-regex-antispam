@@ -1,8 +1,10 @@
 syntax = "proto3";
 
+package checkNEventsState;
+
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/statefulFilters/state";
+option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/types/checkNeventsState";
 
 message State {
   bool verified = 1;
