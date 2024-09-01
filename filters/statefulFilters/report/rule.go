@@ -13,22 +13,22 @@ import (
 	actions "github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
-	"github.com/Civil/tg-simple-regex-antispam/filters/statefulFilters/state"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/checkNeventsState"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
 type Filter struct {
-	n      int
-	logger *zap.Logger
+	chainName string
+	logger    *zap.Logger
 
 	stateDir string
 
 	filteringRules []interfaces.FilteringRule
 	actions        []actions.Action
 
-	db    *badger.DB
-	banDB bannedDB.BanDB
+	db  *badger.DB
+	bot *telego.Bot
 
 	isFinal bool
 }
@@ -38,7 +38,7 @@ var (
 	ErrNIsZero       = errors.New("n cannot be equal to 0")
 )
 
-func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
+func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot, config map[string]any,
 	filteringRules []interfaces.FilteringRule, actions []actions.Action,
 ) (interfaces.StatefulFilter, error) {
 	var stateDir string
@@ -51,15 +51,7 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 		return nil, ErrStateDirEmpty
 	}
 
-	n, err := config2.GetOptionInt(config, "n")
-	if err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return nil, ErrNIsZero
-	}
-
-	isFinal, err := config2.GetOptionBool(config, "isFinal")
+	isFinal, err := config2.GetOptionBoolWithDefault(config, "isFinal", false)
 	if err != nil {
 		return nil, err
 	}
@@ -70,9 +62,14 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 	}
 
 	f := &Filter{
-		logger:         logger.With(zap.String("filter", "checkNevents")),
+		logger: logger.With(
+			zap.String("filter", chainName),
+			zap.String("filter_type", "report"),
+		),
+		chainName:      chainName,
 		stateDir:       stateDir,
 		db:             badgerDB,
+		bot:            bot,
 		isFinal:        isFinal,
 		filteringRules: filteringRules,
 		actions:        actions,
@@ -80,7 +77,7 @@ func New(logger *zap.Logger, _ bannedDB.BanDB, config map[string]any,
 	return f, nil
 }
 
-func (r *Filter) setState(userID int64, s *state.State) error {
+func (r *Filter) setState(userID int64, s *checkNeventsState.State) error {
 	b, err := proto.Marshal(s)
 	if err != nil {
 		return err
@@ -91,8 +88,8 @@ func (r *Filter) setState(userID int64, s *state.State) error {
 		})
 }
 
-func (r *Filter) getState(userID int64) (*state.State, error) {
-	var s state.State
+func (r *Filter) getState(userID int64) (*checkNeventsState.State, error) {
+	var s checkNeventsState.State
 	err := r.db.View(
 		func(txn *badger.Txn) error {
 			item, err := txn.Get(badgerHelper.UserIDToKey(userID))
@@ -109,85 +106,80 @@ func (r *Filter) getState(userID int64) (*state.State, error) {
 	return &s, nil
 }
 
-func (r *Filter) removeState(userID int64) error {
+func (r *Filter) RemoveState(userID int64) error {
 	return r.db.Update(
 		func(txn *badger.Txn) error {
 			return txn.Delete(badgerHelper.UserIDToKey(userID))
 		})
 }
 
-func (r *Filter) Score(msg telego.Message) int {
-	if strings.HasPrefix("/report", msg.Text) || strings.HasPrefix("/spam", msg.Text) {
-		return 100
+func (r *Filter) Score(msg *telego.Message) int {
+	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
+		return 0
 	}
-	userID := msg.From.ID
-	actualState, err := r.getState(userID)
+	if msg.ReplyToMessage == nil {
+		r.logger.Debug("message does not have a reply")
+		return 0
+	}
+	reportedMsg := msg.ReplyToMessage
+	stateKey := int64(reportedMsg.MessageID)
+	actualState, err := r.getState(stateKey)
 	if err != nil || actualState == nil || len(actualState.MessageIds) == 0 {
-		r.logger.Debug("failed to get state",
-			zap.Int64("userID", userID),
+		r.logger.Debug("failed to get state, creating a clean one",
+			zap.Int("messageID", reportedMsg.MessageID),
 			zap.Error(err),
 		)
-		actualState = &state.State{
+		actualState = &checkNeventsState.State{
 			Verified:   false,
-			MessageIds: []int64{int64(msg.MessageID)},
+			MessageIds: make(map[int64]bool),
 			LastUpdate: timestamppb.Now(),
 		}
+		actualState.MessageIds[stateKey] = true
 	}
 
-	// We already verified that user
+	// We already reported that message/user
 	if actualState.Verified {
+		r.logger.Debug("message/user already reported")
+		sendMessageParams := &telego.SendMessageParams{
+			ChatID: msg.Chat.ChatID(),
+			Text:   "Message/user already reported",
+			ReplyParameters: &telego.ReplyParameters{
+				MessageID: msg.MessageID,
+			},
+		}
+
+		_, err = r.bot.SendMessage(
+			sendMessageParams,
+		)
+		if err != nil {
+			r.logger.Error("failed to send message", zap.Error(err))
+		}
 		return -1
 	}
 
-	actualState.MessageIds = append(actualState.MessageIds, int64(msg.MessageID))
-	actualState.LastUpdate = timestamppb.Now()
-
-	maxScore := 0
-	for _, filter := range r.filteringRules {
-		score := filter.Score(msg)
-		if score > maxScore {
-			maxScore = score
-			if maxScore == 100 {
-				// We don't care about State of a spammer, but we need to track if they are banned (for some time)
-				err = r.banDB.BanUser(userID)
-				if err != nil {
-					r.logger.Error("failed to ban user", zap.Int64("userID", userID), zap.Error(err))
-					return maxScore
-				}
-
-				for _, action := range r.actions {
-					err = action.Apply(msg.Chat.ChatID(), actualState.MessageIds, userID)
-					if err != nil {
-						r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
-						return maxScore
-					}
-				}
-
-				err = r.removeState(userID)
-				if err != nil {
-					r.logger.Error("failed to remove state", zap.Int64("userID", userID), zap.Error(err))
-					return maxScore
-				}
-				return maxScore
-			}
+	r.logger.Debug("applying actions...")
+	for _, action := range r.actions {
+		r.logger.Debug("trying to apply action",
+			zap.Any("message_ids", actualState.MessageIds),
+			zap.Any("action", action),
+		)
+		err = action.ApplyToMessage(r, reportedMsg)
+		if err != nil {
+			r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
+			return 100
 		}
 	}
-	if maxScore > 0 {
-		return maxScore
-	}
-	if len(actualState.MessageIds) >= r.n {
-		actualState.Verified = true
-		actualState.MessageIds = nil
-	}
-	err = r.setState(userID, actualState)
+
+	actualState.Verified = true
+	err = r.setState(stateKey, actualState)
 	if err != nil {
 		r.logger.Error("failed to set new state",
-			zap.Int64("userID", userID),
 			zap.Any("new_state", actualState),
 			zap.Error(err),
 		)
 	}
-	return 0
+
+	return 100
 }
 
 func (r *Filter) IsStateful() bool {
@@ -195,7 +187,11 @@ func (r *Filter) IsStateful() bool {
 }
 
 func (r *Filter) GetName() string {
-	return "checkNEvents"
+	return "report"
+}
+
+func (r *Filter) GetFilterName() string {
+	return r.chainName
 }
 
 func (r *Filter) IsFinal() bool {
@@ -203,7 +199,7 @@ func (r *Filter) IsFinal() bool {
 }
 
 func Help() string {
-	return "checkNevents requires `stateFile` parameter"
+	return "report requires `stateFile` parameter"
 }
 
 func (r *Filter) Close() error {
@@ -215,5 +211,13 @@ func (r *Filter) SaveState() error {
 }
 
 func (r *Filter) LoadState() error {
+	return nil
+}
+
+func (r *Filter) TGAdminPrefix() string {
+	return ""
+}
+
+func (r *Filter) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
 	return nil
 }

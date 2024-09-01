@@ -3,6 +3,7 @@ module github.com/Civil/tg-simple-regex-antispam
 go 1.22.6
 
 require (
+	github.com/ansel1/merry/v2 v2.2.1
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/mymmrac/telego v0.31.1
 	github.com/urfave/cli/v2 v2.27.4

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package regexConfig;
+
+option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/types/regexConfig";
+
+message Config {
+  repeated string regex = 1;
+}

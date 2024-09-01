@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Civil/tg-simple-regex-antispam/actions"
 	actionsInterfaces "github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
@@ -14,12 +15,25 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/config"
 	"github.com/Civil/tg-simple-regex-antispam/filters"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/helper/logs"
 	"github.com/Civil/tg-simple-regex-antispam/tg"
 )
 
 func main() {
-	logger := zap.Must(zap.NewProduction())
+	atom := zap.NewAtomicLevel()
+	encoderCfg := zap.NewProductionEncoderConfig()
+
+	logger := zap.New(
+		zapcore.NewCore(
+			zapcore.NewJSONEncoder(encoderCfg),
+			zapcore.Lock(os.Stdout),
+			atom,
+		))
 	zap.ReplaceGlobals(logger)
+	_, err := zap.RedirectStdLogAt(logger, zap.ErrorLevel)
+	if err != nil {
+		logger.Fatal("failed to redirect std logger", zap.Error(err))
+	}
 	defer func() {
 		_ = logger.Sync() // flushes buffer, if any
 	}()
@@ -34,28 +48,38 @@ func main() {
 				Action: func(c *cli.Context) error {
 					cfg, err := config.Load("config.yaml")
 					if err != nil {
-						logger.Fatal("failed to load configuration", zap.Error(err))
+						logger.Error("failed to load configuration", zap.Error(err))
+						return err
 					}
+
+					atom.SetLevel(cfg.LogLevel)
 
 					banDB, err := bannedDB.New(logger, cfg.BannedDBConfig)
 					if err != nil {
-						logger.Fatal("failed initializing bannedD", zap.Error(err))
+						logs.ErrNST(logger, "failed initializing bannedDB", err)
+						return err
 					}
-					defer banDB.Close()
+					defer func(logger *zap.Logger) {
+						err = banDB.Close()
+						if err != nil {
+							logger.Error("failed to close bannedDB", zap.Error(err))
+						}
+					}(logger)
 
 					statefulFilters := make([]interfaces.StatefulFilter, 0)
 					statelessFilters := filters.GetFilteringRules()
 
-					tbot, err := tg.NewTelego(logger, cfg.TelegramToken, statefulFilters)
+					tbot, err := tg.NewTelego(logger, cfg.TelegramToken, &statefulFilters, cfg.AdminIDs, banDB)
 					if err != nil {
 						logger.Error("error creating bot", zap.Error(err))
+						return err
 					}
 					defer tbot.Stop()
 
 					for _, filter := range cfg.StatefulFilters {
 						f, err := filters.GetStatefulFilter(filter.Name)
 						if err != nil {
-							logger.Fatal("error creating stateful filter", zap.Error(err))
+							logger.Error("error creating stateful filter", zap.String("name", filter.Name), zap.Error(err))
 							return err
 						}
 
@@ -63,13 +87,13 @@ func main() {
 						for _, rule := range filter.StatelessFilters {
 							fInit, ok := statelessFilters[rule.Name]
 							if !ok {
-								logger.Fatal("unsupported filtering rule", zap.String("rule", rule.Name), zap.Error(err))
+								logger.Error("unsupported filtering rule", zap.String("rule", rule.Name), zap.Error(err))
 								return err
 							}
 
-							f, err := fInit(rule.Arguments)
+							f, err := fInit(rule.Arguments, rule.Name)
 							if err != nil {
-								logger.Fatal("error initializing filtering rule", zap.Error(err))
+								logger.Error("error initializing filtering rule", zap.Error(err))
 								return err
 							}
 
@@ -80,13 +104,13 @@ func main() {
 						for _, action := range filter.Actions {
 							actionInit, err := actions.GetAction(action.Name)
 							if err != nil {
-								logger.Fatal("error creating action", zap.Error(err))
+								logger.Error("error creating action", zap.Error(err))
 								return err
 							}
 
 							actionObj, err := actionInit(logger, tbot.GetBot(), action.Arguments)
 							if err != nil {
-								logger.Fatal("error initializing action", zap.Error(err))
+								logger.Error("error initializing action", zap.Error(err))
 								return err
 							}
 
@@ -94,17 +118,21 @@ func main() {
 
 						}
 
-						statefulFilter, err := f(logger, banDB, filter.Arguments, filteringRules, actionsObjs)
+						statefulFilter, err := f(logger, filter.FilterName, banDB, tbot.GetBot(), filter.Arguments, filteringRules, actionsObjs)
 						if err != nil {
-							logger.Fatal("error initializing stateful filter", zap.Error(err))
+							logger.Error("error initializing stateful filter", zap.Error(err))
+							return err
 						}
-						defer statefulFilter.Close()
+						defer func() { _ = statefulFilter.Close() }()
 						statefulFilters = append(statefulFilters, statefulFilter)
 					}
+
+					tbot.UpdatePrefixes()
 
 					logger.Info("starting bot", zap.Any("config", cfg))
 
 					tbot.Start()
+
 					err = banDB.SaveState()
 					if err != nil {
 						logger.Error("error saving banDB state", zap.Error(err))
@@ -152,11 +180,39 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name:  "config",
+				Usage: "Prints current configuration, as parsed from config.yaml",
+				Action: func(c *cli.Context) error {
+					cfg, err := config.Load("config.yaml")
+					if err != nil {
+						cfg = config.DefaultConfig()
+					}
+					encoder := yaml.NewEncoder(os.Stdout)
+					encoder.SetIndent(4)
+					err = encoder.Encode(cfg)
+					if err != nil {
+						logger.Fatal("error encoding config", zap.Error(err))
+					}
+					return nil
+				},
+			},
+			{
+				Name:  "sample_config",
+				Usage: "Prints sample configuration",
+				Action: func(c *cli.Context) error {
+					cfg := config.SampleConfig()
+					encoder := yaml.NewEncoder(os.Stdout)
+					encoder.SetIndent(4)
+					_ = encoder.Encode(cfg)
+					return nil
+				},
+			},
 		},
 	}
 
-	err := app.Run(os.Args)
+	err = app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		logs.ErrNST(logger, "failed to start app", err)
 	}
 }

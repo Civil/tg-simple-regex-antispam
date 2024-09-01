@@ -9,4 +9,5 @@ type BanDB interface {
 	BanUser(userID int64) error
 	UnbanUser(userID int64) error
 	IsBanned(userID int64) bool
+	ListUserIDs() ([]int64, error)
 }
