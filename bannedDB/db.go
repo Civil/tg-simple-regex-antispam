@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
+	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	"github.com/Civil/tg-simple-regex-antispam/helper/stateful"
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
@@ -42,7 +43,7 @@ func New(logger *zap.Logger, config map[string]any) (BanDB, error) {
 		return nil, ErrStateDirNotString
 	}
 
-	badgerDB, err := badger.Open(badger.DefaultOptions(stateDir))
+	badgerDB, err := badger.Open(badgerOpts.GetBadgerOptions(logger, "bannedDB", stateDir))
 	if err != nil {
 		return nil, err
 	}

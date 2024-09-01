@@ -12,6 +12,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/helper/logs"
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
@@ -34,7 +35,7 @@ type Telego struct {
 	handlers map[string]tg.AdminCMDHandlerFunc
 }
 
-func NewTelego(logger *zap.Logger, token string, filters *[]interfaces.StatefulFilter, adminIDs []int64, banDB bannedDB.BanDB) (TgAPI,
+func New(logger *zap.Logger, token string, filters *[]interfaces.StatefulFilter, adminIDs []int64, banDB bannedDB.BanDB) (TgAPI,
 	error) {
 	if token == "" || token == "your_telegram_bot_token" {
 		logger.Error("no token provided")
@@ -65,7 +66,7 @@ func NewTelego(logger *zap.Logger, token string, filters *[]interfaces.StatefulF
 	t.handlers[t.banDB.TGAdminPrefix()] = t.banDB.HandleTGCommands
 	t.handlers["listCmds"] = t.listAdminPrefixes
 
-	bot, err := telego.NewBot(t.token, telego.WithDefaultDebugLogger())
+	bot, err := telego.NewBot(t.token, telego.WithLogger(logs.New(t.logger)))
 	if err != nil {
 		return nil, err
 	}

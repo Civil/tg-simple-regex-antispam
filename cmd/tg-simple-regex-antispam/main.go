@@ -69,7 +69,7 @@ func main() {
 					statefulFilters := make([]interfaces.StatefulFilter, 0)
 					statelessFilters := filters.GetFilteringRules()
 
-					tbot, err := tg.NewTelego(logger, cfg.TelegramToken, &statefulFilters, cfg.AdminIDs, banDB)
+					tbot, err := tg.New(logger, cfg.TelegramToken, &statefulFilters, cfg.AdminIDs, banDB)
 					if err != nil {
 						logger.Error("error creating bot", zap.Error(err))
 						return err
@@ -77,9 +77,10 @@ func main() {
 					defer tbot.Stop()
 
 					for _, filter := range cfg.StatefulFilters {
+						sfLogger := logger.With(zap.String("filter", filter.Name))
 						f, err := filters.GetStatefulFilter(filter.Name)
 						if err != nil {
-							logger.Error("error creating stateful filter", zap.String("name", filter.Name), zap.Error(err))
+							sfLogger.Error("error creating stateful filter", zap.String("name", filter.Name), zap.Error(err))
 							return err
 						}
 
@@ -87,13 +88,13 @@ func main() {
 						for _, rule := range filter.StatelessFilters {
 							fInit, ok := statelessFilters[rule.Name]
 							if !ok {
-								logger.Error("unsupported filtering rule", zap.String("rule", rule.Name), zap.Error(err))
+								sfLogger.Error("unsupported filtering rule", zap.String("rule", rule.Name), zap.Error(err))
 								return err
 							}
 
-							f, err := fInit(rule.Arguments, rule.Name)
+							f, err := fInit(sfLogger, rule.Arguments, rule.Name)
 							if err != nil {
-								logger.Error("error initializing filtering rule", zap.Error(err))
+								sfLogger.Error("error initializing filtering rule", zap.Error(err))
 								return err
 							}
 
@@ -108,7 +109,7 @@ func main() {
 								return err
 							}
 
-							actionObj, err := actionInit(logger, tbot.GetBot(), action.Arguments)
+							actionObj, err := actionInit(sfLogger, tbot.GetBot(), action.Arguments)
 							if err != nil {
 								logger.Error("error initializing action", zap.Error(err))
 								return err
