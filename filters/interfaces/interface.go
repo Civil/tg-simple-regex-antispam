@@ -17,12 +17,12 @@ type FilteringRule interface {
 	HandleTGCommands(*zap.Logger, *telego.Bot, *telego.Message, []string) error
 }
 
-type InitFunc func(map[string]any, string) (FilteringRule, error)
+type InitFunc func(*zap.Logger, map[string]any, string) (FilteringRule, error)
 
 type HelpFunc func() string
 
 type StatefulFilter interface {
 	stateful.Stateful
 	FilteringRule
-	RemoveState(userID int64) error
+	RemoveState(int64) error
 }

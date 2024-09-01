@@ -9,6 +9,7 @@ import (
 )
 
 type Filter struct {
+	logger    *zap.Logger
 	chainName string
 	isFinal   bool
 }
@@ -36,13 +37,15 @@ func (r *Filter) IsFinal() bool {
 	return r.isFinal
 }
 
-func New(config map[string]any, chainName string) (interfaces.FilteringRule, error) {
+func New(logger *zap.Logger, config map[string]any, chainName string) (interfaces.FilteringRule, error) {
+	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "partialMatch"))
 	isFinal, err := config2.GetOptionBoolWithDefault(config, "isFinal", false)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Filter{
+		logger:    logger,
 		chainName: chainName,
 		isFinal:   isFinal,
 	}, nil

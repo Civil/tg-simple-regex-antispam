@@ -15,12 +15,14 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/filters/types/regexConfig"
+	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
 type Filter struct {
 	sync.RWMutex
+	logger    *zap.Logger
 	chainName string
 	regex     []*regexp.Regexp
 	isFinal   bool
@@ -70,7 +72,8 @@ var (
 	ErrConfigDirEmpty = errors.New("config_dir cannot be empty")
 )
 
-func New(config map[string]any, chainName string) (interfaces.FilteringRule, error) {
+func New(logger *zap.Logger, config map[string]any, chainName string) (interfaces.FilteringRule, error) {
+	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "regex"))
 	configDir, err := config2.GetOptionString(config, "config_dir")
 	if err != nil {
 		return nil, err
@@ -78,7 +81,7 @@ func New(config map[string]any, chainName string) (interfaces.FilteringRule, err
 	if configDir == "" {
 		return nil, ErrConfigDirEmpty
 	}
-	configDB, err := badger.Open(badger.DefaultOptions(configDir))
+	configDB, err := badger.Open(badgerOpts.GetBadgerOptions(logger, chainName+"_DB", configDir))
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +92,7 @@ func New(config map[string]any, chainName string) (interfaces.FilteringRule, err
 	}
 
 	res := Filter{
+		logger:              logger,
 		chainName:           chainName,
 		isFinal:             isFinal,
 		regex:               make([]*regexp.Regexp, 0),

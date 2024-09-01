@@ -15,6 +15,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/filters/types/checkNeventsState"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
+	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
@@ -56,7 +57,7 @@ func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot
 		return nil, err
 	}
 
-	badgerDB, err := badger.Open(badger.DefaultOptions(stateDir))
+	badgerDB, err := badger.Open(badgerOpts.GetBadgerOptions(logger, chainName+"_DB", stateDir))
 	if err != nil {
 		return nil, err
 	}
