@@ -2,6 +2,7 @@ package logs
 
 import (
 	"fmt"
+	"regexp"
 
 	"go.uber.org/zap"
 )
@@ -19,6 +20,8 @@ func ErrNST(l *zap.Logger, msg string, e error) {
 
 type StdLogger struct {
 	zap.SugaredLogger
+
+	tgApiTokenRE *regexp.Regexp
 }
 
 // Warningf is required for badgerdb, and it is required to have interface args...
@@ -26,6 +29,18 @@ func (l *StdLogger) Warningf(msg string, args ...interface{}) {
 	l.Warn(zap.String("msg", fmt.Sprintf(msg, args...)))
 }
 
+func (l *StdLogger) Debugf(msg string, args ...interface{}) {
+	for i := range args {
+		if s, ok := args[i].(string); ok {
+			args[i] = l.tgApiTokenRE.ReplaceAllString(s, "api.telegram.org/bot**TOKEN**/")
+		}
+	}
+	l.SugaredLogger.Debugf(l.tgApiTokenRE.ReplaceAllString(msg, "api.telegram.org/bot**TOKEN**/"), args...)
+}
+
 func New(logger *zap.Logger) *StdLogger {
-	return &StdLogger{SugaredLogger: *logger.Sugar()}
+	return &StdLogger{
+		SugaredLogger: *logger.Sugar(),
+		tgApiTokenRE:  regexp.MustCompile(`api\.telegram\.org/bot[^/]+/`),
+	}
 }

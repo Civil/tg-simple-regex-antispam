@@ -130,7 +130,14 @@ func main() {
 
 					tbot.UpdatePrefixes()
 
-					logger.Info("starting bot", zap.Any("config", cfg))
+					logger.Info("starting bot",
+						zap.Int64s("allowed_chat_ids", cfg.AllowedChatIDs),
+						zap.Int64s("admin_ids", cfg.AdminIDs),
+						zap.String("database_state_directory", cfg.DatabaseStateDirectory),
+						zap.Any("banned_db_config", cfg.BannedDBConfig),
+						zap.String("log_level", cfg.LogLevel.String()),
+						zap.Any("stateful_filters", cfg.StatefulFilters),
+					)
 
 					tbot.Start()
 
