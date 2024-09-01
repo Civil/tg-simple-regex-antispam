@@ -102,7 +102,7 @@ func (t *Telego) UpdatePrefixes() {
 
 func (t *Telego) listAdminPrefixes(logger *zap.Logger, bot *telego.Bot, message *telego.Message, _ []string) error {
 	buf := bytes.NewBuffer([]byte{})
-	buf.WriteString("Available admin prefiexes:\n\n")
+	buf.WriteString("Available subcommands:\n\n")
 	for prefix := range t.handlers {
 		buf.WriteString("   " + prefix + "\n")
 	}
@@ -118,9 +118,7 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 	logger.Debug("admin command", zap.String("command", message.Text))
 	tokens := strings.Split(message.Text, " ")
 	if len(tokens) < 2 {
-		logger.Warn("invalid command", zap.Any("message", message))
-		err := tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("invalid command: %v",
-			message.Text))
+		err := t.listAdminPrefixes(logger, bot, message, nil)
 		if err != nil {
 			logger.Error("failed to send message", zap.Error(err))
 		}
@@ -155,7 +153,7 @@ func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 		zap.Int64("from_user_id", userID),
 	)
 	logger.Debug("got message", zap.Any("message", message))
-	if strings.HasPrefix(message.Text, "/admin ") {
+	if message.Text == "/admin" || strings.HasPrefix(message.Text, "/admin ") {
 		if _, ok := t.adminIDs[userID]; !ok {
 			logger.Debug("user is not in list of extra super users, checking chat admins")
 			params := &telego.GetChatAdministratorsParams{

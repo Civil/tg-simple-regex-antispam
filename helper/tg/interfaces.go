@@ -1,6 +1,7 @@
 package tg
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 
@@ -23,8 +24,18 @@ var (
 )
 
 func (r *TGHaveAdminCommands) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
+	supportedCommands := make([]string, 0, len(r.Handlers))
+	for cmd := range r.Handlers {
+		supportedCommands = append(supportedCommands, cmd)
+	}
 	if tokens == nil {
-		logger.Error("empty tokens for tg command")
+		logger.Warn("empty tokens for tg command")
+		buf := bytes.NewBuffer([]byte{})
+		buf.WriteString("Sub-command was not specified.\nAvailable subcommands:\n\n")
+		for _, prefix := range supportedCommands {
+			buf.WriteString("   " + prefix + "\n")
+		}
+		_ = SendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
 		return ErrCommandArgsInvalid
 	}
 	logger.Debug("handling tg command", zap.String("command", tokens[0]))
@@ -34,10 +45,6 @@ func (r *TGHaveAdminCommands) HandleTGCommands(logger *zap.Logger, bot *telego.B
 		} else {
 			return h(logger, bot, message, nil)
 		}
-	}
-	supportedCommands := make([]string, 0, len(r.Handlers))
-	for cmd := range r.Handlers {
-		supportedCommands = append(supportedCommands, cmd)
 	}
 	logger.Warn("unsupported command", zap.Strings("tokens", tokens), zap.Strings("supported_commands", supportedCommands))
 	return stateful.ErrNotSupported
