@@ -156,7 +156,7 @@ func (r *Filter) tgAddRegex(logger *zap.Logger, bot *telego.Bot, message *telego
 	newRegex := strings.Join(tokens, " ")
 
 	if len(newRegex) == 0 {
-		err := tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("Regex cannot be empty"))
+		err := tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, "Regex cannot be empty")
 		if err != nil {
 			return err
 		}
