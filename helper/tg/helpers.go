@@ -2,6 +2,7 @@ package tg
 
 import (
 	"github.com/mymmrac/telego"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 func SendMessage(bot *telego.Bot, chatID telego.ChatID, messageID *int, text string) error {
@@ -31,4 +32,8 @@ func BanUser(bot *telego.Bot, chatID telego.ChatID, userID int64, deleteAll bool
 		return err
 	}
 	return nil
+}
+
+func DeleteMessage(bot *telego.Bot, msg *telego.Message) error {
+	return bot.DeleteMessage(tu.Delete(msg.Chat.ChatID(), msg.MessageID))
 }

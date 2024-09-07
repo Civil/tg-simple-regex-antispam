@@ -42,6 +42,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 
 	for _, re := range r.regex {
 		if re.MatchString(msg.Caption) || re.MatchString(msg.Text) {
+			r.logger.Debug("regex match found", zap.String("regex", re.String()))
 			return 100
 		}
 	}
