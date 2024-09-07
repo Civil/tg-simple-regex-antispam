@@ -11,6 +11,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
 type Action struct {
@@ -78,9 +79,9 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, message *telego.Me
 }
 
 func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
-	anonymousReport, ok := config["is_anonymous_report"].(bool)
-	if !ok {
-		anonymousReport = false
+	anonymousReport, err := config2.GetOptionBoolWithDefault(config, "isAnonymousReport", true)
+	if err != nil {
+		return nil, err
 	}
 	return &Action{
 		logger: logger,
