@@ -17,6 +17,7 @@ import (
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
+	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
 type Filter struct {
@@ -31,7 +32,8 @@ type Filter struct {
 	db  *badger.DB
 	bot *telego.Bot
 
-	isFinal bool
+	isFinal         bool
+	removeReportMsg bool
 }
 
 var (
@@ -57,6 +59,11 @@ func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot
 		return nil, err
 	}
 
+	removeReportMsg, err := config2.GetOptionBoolWithDefault(config, "removeReportMsg", true)
+	if err != nil {
+		return nil, err
+	}
+
 	badgerDB, err := badger.Open(badgerOpts.GetBadgerOptions(logger, chainName+"_DB", stateDir))
 	if err != nil {
 		return nil, err
@@ -67,13 +74,14 @@ func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot
 			zap.String("filter", chainName),
 			zap.String("filter_type", "report"),
 		),
-		chainName:      chainName,
-		stateDir:       stateDir,
-		db:             badgerDB,
-		bot:            bot,
-		isFinal:        isFinal,
-		filteringRules: filteringRules,
-		actions:        actions,
+		chainName:       chainName,
+		stateDir:        stateDir,
+		db:              badgerDB,
+		bot:             bot,
+		isFinal:         isFinal,
+		filteringRules:  filteringRules,
+		removeReportMsg: removeReportMsg,
+		actions:         actions,
 	}
 	return f, nil
 }
@@ -154,6 +162,13 @@ func (r *Filter) Score(msg *telego.Message) int {
 		)
 		if err != nil {
 			r.logger.Error("failed to send message", zap.Error(err))
+		}
+
+		if r.removeReportMsg {
+			err = tg.DeleteMessage(r.bot, msg)
+			if err != nil {
+				r.logger.Error("failed to delete message", zap.Error(err))
+			}
 		}
 		return -1
 	}
