@@ -151,7 +151,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 	logger := r.logger.With(zap.Int64("userID", userID))
 	if r.bannedUsers.IsBanned(userID) && r.warnAboutAlreadyBanned {
 		logger.Warn("user is banned, but somehow sends messages, deleting them")
-		err := r.applyActions(logger, msg.Chat.ChatID(), []int64{int64(msg.MessageID)}, userID)
+		err := r.applyActions(logger, msg.Chat.ChatID(), msg, []int64{int64(msg.MessageID)}, userID)
 		if err != nil {
 			logger.Error("failed to apply actions", zap.Error(err))
 		}
@@ -199,7 +199,9 @@ func (r *Filter) Score(msg *telego.Message) int {
 	}
 	if maxScore == 100 {
 		// We don't care about State of a spammer, but we need to track if they are banned (at least for some time)
-		logger.Debug("user is a spammer, banning them")
+		logger.Debug("user is a spammer, banning them",
+			zap.String("username", msg.From.Username),
+		)
 		err = r.bannedUsers.BanUser(userID)
 		if err != nil {
 			logger.Error("failed to ban user", zap.Error(err))
@@ -211,7 +213,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 			messageIds = append(messageIds, id)
 		}
 
-		err = r.applyActions(logger, msg.Chat.ChatID(), messageIds, userID)
+		err = r.applyActions(logger, msg.Chat.ChatID(), msg, messageIds, userID)
 		if err != nil {
 			logger.Error("failed to apply actions", zap.Error(err))
 		}
@@ -239,12 +241,17 @@ func (r *Filter) Score(msg *telego.Message) int {
 	return maxScore
 }
 
-func (r *Filter) applyActions(logger *zap.Logger, ChatID telego.ChatID, messageIds []int64, userID int64) error {
+func (r *Filter) applyActions(logger *zap.Logger, ChatID telego.ChatID, msg *telego.Message, messageIds []int64, userID int64) error {
 	for _, action := range r.actions {
-		err := action.Apply(r, ChatID, messageIds, userID)
+		var err error
+		if action.PerMessage() {
+			err = action.ApplyToMessage(r, msg)
+		} else {
+			err = action.Apply(r, ChatID, messageIds, userID)
+		}
+
 		if err != nil {
 			logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
-			return err
 		}
 	}
 	return nil
