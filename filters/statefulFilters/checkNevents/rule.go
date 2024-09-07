@@ -33,7 +33,8 @@ type Filter struct {
 
 	db *badger.DB
 
-	isFinal bool
+	isFinal                bool
+	warnAboutAlreadyBanned bool
 
 	tg.TGHaveAdminCommands
 }
@@ -67,6 +68,11 @@ func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.B
 		return nil, err
 	}
 
+	warnAboutAlreadyBanned, err := config2.GetOptionBoolWithDefault(config, "warnAboutAlreadyBanned", false)
+	if err != nil {
+		return nil, err
+	}
+
 	badgerDB, err := badger.Open(badgerOpts.GetBadgerOptions(logger, chainName+"_DB", stateDir))
 	if err != nil {
 		return nil, err
@@ -77,14 +83,15 @@ func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.B
 			zap.String("filter", chainName),
 			zap.String("filter_type", "checkNevents"),
 		),
-		chainName:      chainName,
-		stateDir:       stateDir,
-		bannedUsers:    banDB,
-		filteringRules: filteringRules,
-		actions:        actions,
-		db:             badgerDB,
-		isFinal:        isFinal,
-		n:              n,
+		chainName:              chainName,
+		stateDir:               stateDir,
+		bannedUsers:            banDB,
+		filteringRules:         filteringRules,
+		actions:                actions,
+		db:                     badgerDB,
+		isFinal:                isFinal,
+		n:                      n,
+		warnAboutAlreadyBanned: warnAboutAlreadyBanned,
 		TGHaveAdminCommands: tg.TGHaveAdminCommands{
 			Handlers: make(map[string]tg.AdminCMDHandlerFunc),
 		},
@@ -142,7 +149,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 	r.logger.Debug("scoring message", zap.Any("message", msg))
 	userID := msg.From.ID
 	logger := r.logger.With(zap.Int64("userID", userID))
-	if r.bannedUsers.IsBanned(userID) {
+	if r.bannedUsers.IsBanned(userID) && r.warnAboutAlreadyBanned {
 		logger.Warn("user is banned, but somehow sends messages, deleting them")
 		err := r.applyActions(logger, msg.Chat.ChatID(), []int64{int64(msg.MessageID)}, userID)
 		if err != nil {
