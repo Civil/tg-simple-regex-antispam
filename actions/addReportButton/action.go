@@ -78,6 +78,14 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, message *telego.Me
 	return nil
 }
 
+func (r *Action) GetName() string {
+	return "addReportButton"
+}
+
+func (r *Action) PerMessage() bool {
+	return true
+}
+
 func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
 	anonymousReport, err := config2.GetOptionBoolWithDefault(config, "isAnonymousReport", true)
 	if err != nil {

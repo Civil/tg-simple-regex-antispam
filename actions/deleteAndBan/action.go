@@ -80,6 +80,14 @@ func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID
 
 var ErrNotSupported = errors.New("not supported")
 
+func (r *Action) GetName() string {
+	return "deleteAndBan"
+}
+
+func (r *Action) PerMessage() bool {
+	return false
+}
+
 func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *telego.Message) error {
 	return ErrNotSupported
 }
