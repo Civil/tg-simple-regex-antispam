@@ -26,6 +26,14 @@ func GetOptionString(config map[string]any, name string) (string, error) {
 	return val, nil
 }
 
+func GetOptionStringWithDefault(config map[string]any, name string, def string) string {
+	val, err := GetOptionString(config, name)
+	if err != nil {
+		return def
+	}
+	return val
+}
+
 func GetOptionInt(config map[string]any, name string) (int, error) {
 	var val int
 	valI, ok := config[name]
