@@ -125,12 +125,17 @@ func (r *Filter) RemoveState(userID int64) error {
 
 func (r *Filter) Score(msg *telego.Message) int {
 	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
+		r.logger.Debug("message does not start with /report or /spam")
 		return 0
 	}
 	if msg.ReplyToMessage == nil {
 		r.logger.Debug("message does not have a reply")
 		return 0
 	}
+	r.logger.Debug("got a message that start with /report or /spam",
+		zap.String("message_text", msg.Text),
+		zap.String("from_user", msg.From.Username),
+	)
 	reportedMsg := msg.ReplyToMessage
 	stateKey := int64(reportedMsg.MessageID)
 	actualState, err := r.getState(stateKey)
@@ -152,7 +157,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 		r.logger.Debug("message/user already reported")
 		sendMessageParams := &telego.SendMessageParams{
 			ChatID: msg.Chat.ChatID(),
-			Text:   "Message/user already reported",
+			Text:   "Message/user was already reported",
 			ReplyParameters: &telego.ReplyParameters{
 				MessageID: msg.MessageID,
 			},
