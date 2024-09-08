@@ -179,7 +179,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 
 	// We already verified that user
 	if actualState.Verified {
-		logger.Debug("user is not a spammer, verified")
+		logger.Debug("user is not a spammer, already verified")
 		return 0
 	}
 

@@ -19,6 +19,7 @@ type Action struct {
 	bot    *telego.Bot
 
 	isAnonymousReport bool
+	msgPrefix         string
 }
 
 var ErrNotSupported = errors.New("not supported")
@@ -40,6 +41,9 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, message *telego.Me
 		return fmt.Errorf("getting chat administrators: %w", err)
 	}
 	msgBuf := bytes.NewBuffer([]byte{})
+	if r.msgPrefix != "" {
+		msgBuf.WriteString(r.msgPrefix + " ")
+	}
 	if r.isAnonymousReport {
 		msgBuf.WriteString("Spam: ")
 	} else {
@@ -91,11 +95,13 @@ func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces
 	if err != nil {
 		return nil, err
 	}
+	msgPrefix := config2.GetOptionStringWithDefault(config, "msgPrefix", "")
 	return &Action{
 		logger: logger,
 		bot:    bot,
 
 		isAnonymousReport: anonymousReport,
+		msgPrefix:         msgPrefix,
 	}, nil
 }
 
