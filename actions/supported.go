@@ -5,6 +5,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/addReportButton"
 	"github.com/Civil/tg-simple-regex-antispam/actions/deleteAndBan"
+	"github.com/Civil/tg-simple-regex-antispam/actions/forwardToChat"
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 )
 
@@ -12,10 +13,12 @@ var (
 	supportedActions = map[string]interfaces.InitFunc{
 		"deleteAndBan":    deleteAndBan.New,
 		"addReportButton": addReportButton.New,
+		"forwardToChat":   forwardToChat.New,
 	}
 	supportedActionsHelp = map[string]interfaces.HelpFunc{
 		"deleteAndBan":    deleteAndBan.Help,
 		"addReportButton": addReportButton.Help,
+		"forwardToChat":   forwardToChat.Help,
 	}
 )
 
