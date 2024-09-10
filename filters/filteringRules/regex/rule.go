@@ -22,10 +22,11 @@ import (
 
 type Filter struct {
 	sync.RWMutex
-	logger    *zap.Logger
-	chainName string
-	regex     []*regexp.Regexp
-	isFinal   bool
+	logger        *zap.Logger
+	chainName     string
+	regex         []*regexp.Regexp
+	isFinal       bool
+	caseSensitive bool
 
 	configDB *badger.DB
 	reConfig regexConfig.Config
@@ -34,6 +35,17 @@ type Filter struct {
 }
 
 func (r *Filter) Score(msg *telego.Message) int {
+	var (
+		text    string
+		caption string
+	)
+	if r.caseSensitive {
+		text = msg.Text
+		caption = msg.Caption
+	} else {
+		text = strings.ToLower(msg.Text)
+		caption = strings.ToLower(msg.Caption)
+	}
 	r.RLock()
 	defer r.RUnlock()
 	if len(r.regex) == 0 {
@@ -41,7 +53,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 	}
 
 	for _, re := range r.regex {
-		if re.MatchString(msg.Caption) || re.MatchString(msg.Text) {
+		if re.MatchString(caption) || re.MatchString(text) {
 			r.logger.Debug("regex match found", zap.String("regex", re.String()))
 			return 100
 		}
@@ -92,10 +104,16 @@ func New(logger *zap.Logger, config map[string]any, chainName string) (interface
 		return nil, err
 	}
 
+	caseSensitive, err := config2.GetOptionBoolWithDefault(config, "caseSensetive", false)
+	if err != nil {
+		return nil, err
+	}
+
 	res := Filter{
 		logger:              logger,
 		chainName:           chainName,
 		isFinal:             isFinal,
+		caseSensitive:       caseSensitive,
 		regex:               make([]*regexp.Regexp, 0),
 		TGHaveAdminCommands: tg.TGHaveAdminCommands{},
 		configDB:            configDB,
@@ -105,7 +123,16 @@ func New(logger *zap.Logger, config map[string]any, chainName string) (interface
 	if err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
 		return nil, err
 	}
+	uniqueRegex := make(map[string]struct{})
 	for _, regex := range res.reConfig.Regex {
+		if !caseSensitive {
+			regex = strings.ToLower(regex)
+		}
+		if _, ok := uniqueRegex[regex]; !ok {
+			uniqueRegex[regex] = struct{}{}
+		} else {
+			continue
+		}
 		re, err := regexp.Compile(regex)
 		if err != nil {
 			continue
@@ -166,6 +193,10 @@ func (r *Filter) tgAddRegex(logger *zap.Logger, bot *telego.Bot, message *telego
 			return err
 		}
 		return ErrRegexEmpty
+	}
+
+	if !r.caseSensitive {
+		newRegex = strings.ToLower(newRegex)
 	}
 
 	re, err := regexp.Compile(newRegex)
