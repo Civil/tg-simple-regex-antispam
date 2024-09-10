@@ -44,9 +44,15 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, msg *telego.Messag
 	_, err := r.bot.ForwardMessage(forwardParams)
 	if err != nil {
 		r.logger.Warn("failed to forward message, trying to copy it...", zap.Int64("forwardToChatID", r.forwardToChatID), zap.Int("messageID", msg.MessageID), zap.Error(err))
+		var link string
+		if msg.Chat.Type == telego.ChatTypeSupergroup {
+			link = fmt.Sprintf("https://t.me/c/%v/%v", msg.Chat.Username, msg.MessageID)
+		} else {
+			link = fmt.Sprintf("https://t.me/c/%v/%v", msg.Chat.ID, msg.MessageID)
+		}
 		msgParams := &telego.SendMessageParams{
 			ChatID: telego.ChatID{ID: r.forwardToChatID},
-			Text:   fmt.Sprintf("Message from user %v:\n%v", msg.From.Username, msg.Text),
+			Text:   fmt.Sprintf("Message (%v) from user %v:\n%v", link, msg.From.Username, msg.Text),
 		}
 		_, err = r.bot.SendMessage(msgParams)
 		return err
