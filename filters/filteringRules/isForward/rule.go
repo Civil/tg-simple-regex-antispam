@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
@@ -14,11 +15,13 @@ type Filter struct {
 	isFinal   bool
 }
 
-func (r *Filter) Score(msg *telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
+	res := &scoringResult.ScoringResult{}
 	if msg.ForwardOrigin != nil {
-		return 100
+		res.Reason = "this message have forwardOrigin (is forwarded)"
+		res.Score = 100
 	}
-	return 0
+	return res
 }
 
 func (r *Filter) IsStateful() bool {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
@@ -19,7 +20,7 @@ type Action struct {
 	forwardToChatID int64
 }
 
-func (r *Action) Apply(_ interfaces2.StatefulFilter, _ telego.ChatID, _ []int64, _ int64) error {
+func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64, _ int64) error {
 	return ErrNotSupported
 }
 
@@ -33,7 +34,7 @@ func (r *Action) PerMessage() bool {
 	return true
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, msg *telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResult.ScoringResult, msg *telego.Message) error {
 	forwardParams := &telego.ForwardMessageParams{
 		ChatID:              telego.ChatID{ID: r.forwardToChatID},
 		FromChatID:          msg.Chat.ChatID(),
@@ -41,7 +42,7 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, msg *telego.Messag
 		DisableNotification: true,
 	}
 
-	_, err := r.bot.ForwardMessage(forwardParams)
+	forwardedMsg, err := r.bot.ForwardMessage(forwardParams)
 	if err != nil {
 		r.logger.Warn("failed to forward message, trying to copy it...", zap.Int64("forwardToChatID", r.forwardToChatID), zap.Int("messageID", msg.MessageID), zap.Error(err))
 		var link string
@@ -54,11 +55,23 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, msg *telego.Messag
 			ChatID: telego.ChatID{ID: r.forwardToChatID},
 			Text:   fmt.Sprintf("Message (%v) from user %v:\n%v", link, msg.From.Username, msg.Text),
 		}
-		_, err = r.bot.SendMessage(msgParams)
+		forwardedMsg, err = r.bot.SendMessage(msgParams)
+	}
+
+	if forwardedMsg == nil {
 		return err
 	}
 
-	return nil
+	extraInfoMsgParams := &telego.SendMessageParams{
+		ChatID: telego.ChatID{ID: r.forwardToChatID},
+		Text:   fmt.Sprintf("message_score=%v, ban_reason=\"%v\"", score.Score, score.Reason),
+		ReplyParameters: &telego.ReplyParameters{
+			MessageID: forwardedMsg.MessageID,
+		},
+	}
+	_, err = r.bot.SendMessage(extraInfoMsgParams)
+
+	return err
 }
 
 func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces.Action, error) {
