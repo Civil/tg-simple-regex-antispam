@@ -19,27 +19,31 @@ type Action struct {
 	logger *zap.Logger
 	bot    *telego.Bot
 
-	cleanState bool
-	dryRun     bool
-	deleteAll  bool
+	cleanState    bool
+	dryRun        bool
+	deleteAll     bool
+	verboseDryRun bool
 }
 
 func (r *Action) Apply(callback interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, chatID telego.ChatID, messageIDs []int64, userID int64) error {
 	if r.dryRun {
 		r.logger.Debug("applying action in dry run mode")
-		sendMessageParams := &telego.SendMessageParams{
-			ChatID: chatID,
-			Text:   fmt.Sprintf("ban conditions for user with id=%v has been met, but dryRun is enabled", userID),
-			ReplyParameters: &telego.ReplyParameters{
-				MessageID: int(messageIDs[0]),
-			},
-		}
+		if r.verboseDryRun {
+			sendMessageParams := &telego.SendMessageParams{
+				ChatID: chatID,
+				Text:   fmt.Sprintf("ban conditions for user with id=%v has been met, but dryRun is enabled", userID),
+				ReplyParameters: &telego.ReplyParameters{
+					MessageID: int(messageIDs[0]),
+				},
+			}
 
-		_, err := r.bot.SendMessage(sendMessageParams)
-		if err != nil {
-			r.logger.Error("failed to send dryRun message", zap.Int64("userID", userID))
+			_, err := r.bot.SendMessage(sendMessageParams)
+			if err != nil {
+				r.logger.Error("failed to send dryRun message", zap.Int64("userID", userID))
+			}
+			return err
 		}
-		return err
+		return nil
 	}
 
 	r.logger.Debug("applying action in normal mode")
@@ -102,16 +106,21 @@ func New(logger *zap.Logger, bot *telego.Bot, config map[string]any) (interfaces
 	if err != nil {
 		return nil, err
 	}
+	verboseDryRun, err := config2.GetOptionBoolWithDefault(config, "verboseDryRun", false)
+	if err != nil {
+		return nil, err
+	}
 	deleteAll, err := config2.GetOptionBoolWithDefault(config, "deleteAll", true)
 	if err != nil {
 		return nil, err
 	}
 	return &Action{
-		logger:     logger,
-		bot:        bot,
-		dryRun:     dryRyn,
-		cleanState: cleanState,
-		deleteAll:  deleteAll,
+		logger:        logger,
+		bot:           bot,
+		dryRun:        dryRyn,
+		cleanState:    cleanState,
+		deleteAll:     deleteAll,
+		verboseDryRun: verboseDryRun,
 	}, nil
 }
 
