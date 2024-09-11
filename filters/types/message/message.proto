@@ -1,0 +1,48 @@
+syntax = "proto3";
+package message;
+
+option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/types/message";
+
+
+message From {
+  uint64 id = 1;
+  bool is_bot = 2;
+  string first_name = 3;
+  string username = 4;
+}
+message Chat {
+  int64 id = 1;
+  string type = 2;
+  string title = 3;
+  string username = 4;
+}
+message Sender_user {
+  uint64 id = 1;
+  bool is_bot = 2;
+  string first_name = 3;
+  string username = 4;
+  bool is_premium = 5;
+}
+message Forward_origin {
+  string type = 1;
+  uint32 date = 2;
+  Sender_user sender_user = 3;
+}
+message Entities {
+  string type = 1;
+  uint32 offset = 2;
+  uint32 length = 3;
+}
+
+message Message {
+  uint32 message_id = 1;
+  From from = 2;
+  uint32 date = 3;
+  Chat chat = 4;
+  Forward_origin forward_origin = 5;
+  string text = 6;
+  repeated Entities entities = 7;
+}
+
+
+//
