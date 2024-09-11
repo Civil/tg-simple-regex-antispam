@@ -27,19 +27,26 @@ type Telego struct {
 	token  string
 	logger *zap.Logger
 
-	bot      *telego.Bot
-	filters  *[]interfaces.StatefulFilter
-	adminIDs map[int64]struct{}
-	banDB    bannedDB.BanDB
+	bot            *telego.Bot
+	filters        *[]interfaces.StatefulFilter
+	adminIDs       map[int64]struct{}
+	adminUsernames map[string]struct{}
+	banDB          bannedDB.BanDB
+	allowedChats   map[int64]struct{}
 
 	handlers map[string]tg.AdminCMDHandlerFunc
 }
 
-func New(logger *zap.Logger, token string, filters *[]interfaces.StatefulFilter, adminIDs []int64, banDB bannedDB.BanDB) (TgAPI,
+func New(logger *zap.Logger, token string, filters *[]interfaces.StatefulFilter, adminIDs []int64, allowedChats []int64, adminUsernames []string, banDB bannedDB.BanDB) (TgAPI,
 	error) {
 	if token == "" || token == "your_telegram_bot_token" {
 		logger.Error("no token provided")
 		return nil, errors.New("no token provided")
+	}
+
+	allowedChatsMap := make(map[int64]struct{})
+	for _, chat := range allowedChats {
+		allowedChatsMap[chat] = struct{}{}
 	}
 
 	adminIDsMap := make(map[int64]struct{})
@@ -47,13 +54,20 @@ func New(logger *zap.Logger, token string, filters *[]interfaces.StatefulFilter,
 		adminIDsMap[id] = struct{}{}
 	}
 
+	adminUsernamesMap := make(map[string]struct{})
+	for _, user := range adminUsernames {
+		adminUsernamesMap[user] = struct{}{}
+	}
+
 	t := &Telego{
-		banDB:    banDB,
-		logger:   logger,
-		token:    token,
-		filters:  filters,
-		adminIDs: adminIDsMap,
-		handlers: make(map[string]tg.AdminCMDHandlerFunc),
+		banDB:          banDB,
+		logger:         logger,
+		token:          token,
+		filters:        filters,
+		adminIDs:       adminIDsMap,
+		adminUsernames: adminUsernamesMap,
+		allowedChats:   allowedChatsMap,
+		handlers:       make(map[string]tg.AdminCMDHandlerFunc),
 	}
 
 	for _, filter := range *filters {
@@ -147,15 +161,27 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 	}
 }
 
+func (t *Telego) isAdmin(userID int64, username string) bool {
+	if _, ok := t.adminIDs[userID]; ok {
+		return true
+	}
+
+	if _, ok := t.adminUsernames[username]; ok {
+		return true
+	}
+	return false
+}
+
 func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 	userID := message.From.ID
+	username := message.From.Username
 	logger := t.logger.With(
 		zap.Int64("chat_id", message.Chat.ID),
 		zap.Int64("from_user_id", userID),
 	)
 	logger.Debug("got message", zap.Any("message", message))
 	if message.Text == "/admin" || strings.HasPrefix(message.Text, "/admin ") {
-		if _, ok := t.adminIDs[userID]; !ok {
+		if !t.isAdmin(userID, username) {
 			logger.Debug("user is not in list of extra super users, checking chat admins")
 			params := &telego.GetChatAdministratorsParams{
 				ChatID: message.Chat.ChatID(),
@@ -164,7 +190,7 @@ func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 			if err != nil {
 				logger.Error("failed to get chat administrators", zap.Error(err))
 			}
-			ok = false
+			ok := false
 			for _, admin := range chatAdmins {
 				if admin.MemberUser().ID == userID {
 					ok = true
@@ -178,6 +204,10 @@ func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 			}
 		}
 		t.HandleAdminMessages(logger, bot, &message)
+		return
+	}
+	if _, ok := t.allowedChats[message.Chat.ID]; !ok {
+		logger.Error("message doesn't come from allowed chat list", zap.Any("chat_id", message.Chat.ID), zap.Any("message", message))
 		return
 	}
 	for _, f := range *t.filters {

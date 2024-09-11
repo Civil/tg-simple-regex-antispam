@@ -30,10 +30,11 @@ type StatelessFilteringRules struct {
 }
 
 type Config struct {
-	TelegramToken          string  `yaml:"telegram_token"`
-	AllowedChatIDs         []int64 `yaml:"allowed_chat_ids"`
-	AdminIDs               []int64 `yaml:"admin_ids"`
-	DatabaseStateDirectory string  `yaml:"database_state_directory"`
+	TelegramToken          string   `yaml:"telegram_token"`
+	AllowedChatIDs         []int64  `yaml:"allowed_chat_ids"`
+	AdminIDs               []int64  `yaml:"admin_ids"`
+	AdminUsernames         []string `yaml:"admin_usernames"`
+	DatabaseStateDirectory string   `yaml:"database_state_directory"`
 	// Order matters
 	StatefulFilters []StatefulFilterConfig `yaml:"stateful_filters"`
 	BannedDBConfig  map[string]any         `yaml:"banned_db_config"`
