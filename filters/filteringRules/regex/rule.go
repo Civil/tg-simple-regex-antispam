@@ -15,6 +15,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/filters/types/regexConfig"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
@@ -34,10 +35,11 @@ type Filter struct {
 	tg.TGHaveAdminCommands
 }
 
-func (r *Filter) Score(msg *telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
 	var (
 		text    string
 		caption string
+		res     scoringResult.ScoringResult
 	)
 	if r.caseSensitive {
 		text = msg.Text
@@ -49,16 +51,19 @@ func (r *Filter) Score(msg *telego.Message) int {
 	r.RLock()
 	defer r.RUnlock()
 	if len(r.regex) == 0 {
-		return 0
+		return &res
 	}
 
 	for _, re := range r.regex {
 		if re.MatchString(caption) || re.MatchString(text) {
 			r.logger.Debug("regex match found", zap.String("regex", re.String()))
-			return 100
+
+			res.Reason = fmt.Sprintf("Regex that matched:\n```%v```", re.String())
+			res.Score = 100
+			break
 		}
 	}
-	return 0
+	return &res
 }
 
 func (r *Filter) IsStateful() bool {

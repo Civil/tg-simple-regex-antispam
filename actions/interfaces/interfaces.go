@@ -5,11 +5,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 )
 
 type Action interface {
-	Apply(callbackStatefulFilter interfaces.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error
-	ApplyToMessage(callbackStatefulFilter interfaces.StatefulFilter, message *telego.Message) error
+	Apply(callbackStatefulFilter interfaces.StatefulFilter, score *scoringResult.ScoringResult, chatID telego.ChatID, messageIDs []int64, userID int64) error
+	ApplyToMessage(callbackStatefulFilter interfaces.StatefulFilter, score *scoringResult.ScoringResult, message *telego.Message) error
 	GetName() string
 	PerMessage() bool
 }

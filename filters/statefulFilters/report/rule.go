@@ -14,6 +14,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/filters/types/checkNeventsState"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
@@ -122,14 +123,15 @@ func (r *Filter) RemoveState(userID int64) error {
 		})
 }
 
-func (r *Filter) Score(msg *telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
+	score := &scoringResult.ScoringResult{}
 	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
 		r.logger.Debug("message does not start with /report or /spam")
-		return 0
+		return score
 	}
 	if msg.ReplyToMessage == nil {
 		r.logger.Debug("message does not have a reply")
-		return 0
+		return score
 	}
 	r.logger.Debug("got a message that start with /report or /spam",
 		zap.String("message_text", msg.Text),
@@ -175,19 +177,23 @@ func (r *Filter) Score(msg *telego.Message) int {
 				r.logger.Error("failed to delete message", zap.Error(err))
 			}
 		}
-		return -1
+		score.Score = -1
+		score.Reason = "already reported"
+		return score
 	}
 
 	r.logger.Debug("applying actions...")
+	score.Score = 100
+	score.Reason = "reported command"
 	for _, action := range r.actions {
 		r.logger.Debug("trying to apply action",
 			zap.Any("message_ids", actualState.MessageIds),
 			zap.Any("action", action),
 		)
-		err = action.ApplyToMessage(r, reportedMsg)
+		err = action.ApplyToMessage(r, score, reportedMsg)
 		if err != nil {
 			r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
-			return 100
+			return score
 		}
 	}
 
@@ -200,7 +206,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 		)
 	}
 
-	return 100
+	return score
 }
 
 func (r *Filter) IsStateful() bool {

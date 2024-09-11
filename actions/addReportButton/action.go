@@ -11,6 +11,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
@@ -24,11 +25,11 @@ type Action struct {
 
 var ErrNotSupported = errors.New("not supported")
 
-func (r *Action) Apply(_ interfaces2.StatefulFilter, _ telego.ChatID, _ []int64, _ int64) error {
+func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64, _ int64) error {
 	return ErrNotSupported
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, message *telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, message *telego.Message) error {
 	r.logger.Debug("adding report button to message",
 		zap.Any("message", message),
 		zap.Any("chat", message.Chat),

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
@@ -23,7 +24,7 @@ type Action struct {
 	deleteAll  bool
 }
 
-func (r *Action) Apply(callback interfaces2.StatefulFilter, chatID telego.ChatID, messageIDs []int64, userID int64) error {
+func (r *Action) Apply(callback interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, chatID telego.ChatID, messageIDs []int64, userID int64) error {
 	if r.dryRun {
 		r.logger.Debug("applying action in dry run mode")
 		sendMessageParams := &telego.SendMessageParams{
@@ -88,7 +89,7 @@ func (r *Action) PerMessage() bool {
 	return false
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ *telego.Message) error {
 	return ErrNotSupported
 }
 

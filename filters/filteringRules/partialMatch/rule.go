@@ -2,12 +2,14 @@ package partialMatch
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/mymmrac/telego"
 	"go.uber.org/zap"
 
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
@@ -19,11 +21,13 @@ type Filter struct {
 	isFinal       bool
 }
 
-func (r *Filter) Score(msg *telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
+	res := &scoringResult.ScoringResult{}
 	if strings.Contains(msg.Caption, r.partialMatch) || strings.Contains(msg.Text, r.partialMatch) {
-		return 100
+		res.Reason = fmt.Sprintf("Partial match found: %s", r.partialMatch)
+		res.Score = 100
 	}
-	return 0
+	return res
 }
 
 func (r *Filter) IsStateful() bool {

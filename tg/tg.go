@@ -216,12 +216,13 @@ func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 			zap.String("filter_type", f.GetName()),
 		)
 		score := f.Score(&message)
-		if score > 0 {
+		if score.Score > 0 {
 			logger.Info("message got scored",
-				zap.Int("score", score),
+				zap.Int32("score", score.Score),
+				zap.String("score_reason", score.Reason),
 				zap.Any("message", message),
 			)
-			if score >= 100 && f.IsFinal() {
+			if score.Score >= 100 && f.IsFinal() {
 				logger.Info("stop scoring")
 				break
 			}

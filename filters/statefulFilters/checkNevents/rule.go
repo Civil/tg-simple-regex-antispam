@@ -13,6 +13,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/bannedDB"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/filters/types/checkNeventsState"
+	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
@@ -145,17 +146,21 @@ func (r *Filter) RemoveState(userID int64) error {
 		})
 }
 
-func (r *Filter) Score(msg *telego.Message) int {
+func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
 	r.logger.Debug("scoring message", zap.Any("message", msg))
 	userID := msg.From.ID
 	logger := r.logger.With(zap.Int64("userID", userID))
+	maxScore := &scoringResult.ScoringResult{}
 	if r.bannedUsers.IsBanned(userID) && r.warnAboutAlreadyBanned {
 		logger.Warn("user is banned, but somehow sends messages, deleting them")
-		err := r.applyActions(logger, msg.Chat.ChatID(), msg, []int64{int64(msg.MessageID)}, userID)
+		maxScore.Score = 100
+		maxScore.Reason = "user was already banned"
+		err := r.applyActions(logger, maxScore, msg.Chat.ChatID(), msg, []int64{int64(msg.MessageID)}, userID)
 		if err != nil {
 			logger.Error("failed to apply actions", zap.Error(err))
 		}
-		return 100
+
+		return maxScore
 	}
 
 	actualState, err := r.getState(userID)
@@ -180,24 +185,23 @@ func (r *Filter) Score(msg *telego.Message) int {
 	// We already verified that user
 	if actualState.Verified {
 		logger.Debug("user is not a spammer, already verified")
-		return 0
+		return maxScore
 	}
 
 	actualState.MessageIds[int64(msg.MessageID)] = true
 	actualState.LastUpdate = timestamppb.Now()
 
-	maxScore := 0
 	// Checking for the filters to match the message
 	for _, filter := range r.filteringRules {
 		score := filter.Score(msg)
-		if score > maxScore {
+		if score.Score > maxScore.Score {
 			maxScore = score
 			if filter.IsFinal() {
 				break
 			}
 		}
 	}
-	if maxScore == 100 {
+	if maxScore.Score == 100 {
 		// We don't care about State of a spammer, but we need to track if they are banned (at least for some time)
 		logger.Debug("user is a spammer, banning them",
 			zap.String("username", msg.From.Username),
@@ -213,7 +217,7 @@ func (r *Filter) Score(msg *telego.Message) int {
 			messageIds = append(messageIds, id)
 		}
 
-		err = r.applyActions(logger, msg.Chat.ChatID(), msg, messageIds, userID)
+		err = r.applyActions(logger, maxScore, msg.Chat.ChatID(), msg, messageIds, userID)
 		if err != nil {
 			logger.Error("failed to apply actions", zap.Error(err))
 		}
@@ -241,13 +245,13 @@ func (r *Filter) Score(msg *telego.Message) int {
 	return maxScore
 }
 
-func (r *Filter) applyActions(logger *zap.Logger, ChatID telego.ChatID, msg *telego.Message, messageIds []int64, userID int64) error {
+func (r *Filter) applyActions(logger *zap.Logger, score *scoringResult.ScoringResult, ChatID telego.ChatID, msg *telego.Message, messageIds []int64, userID int64) error {
 	for _, action := range r.actions {
 		var err error
 		if action.PerMessage() {
-			err = action.ApplyToMessage(r, msg)
+			err = action.ApplyToMessage(r, score, msg)
 		} else {
-			err = action.Apply(r, ChatID, messageIds, userID)
+			err = action.Apply(r, score, ChatID, messageIds, userID)
 		}
 
 		if err != nil {
