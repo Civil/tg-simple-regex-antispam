@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package scoringResult;
+
+option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/types/scoringResult";
+
+message ScoringResult {
+  int32 score = 1;
+  string reason = 2;
+}
