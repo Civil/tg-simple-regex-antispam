@@ -34,7 +34,6 @@ type Filter struct {
 
 	isFinal         bool
 	removeReportMsg bool
-	msgPrefix       string
 }
 
 var (
