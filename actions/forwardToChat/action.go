@@ -11,6 +11,7 @@ import (
 	interfaces2 "github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	"github.com/Civil/tg-simple-regex-antispam/filters/types/scoringResult"
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
+	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
 type Action struct {
@@ -62,14 +63,7 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResu
 		return err
 	}
 
-	extraInfoMsgParams := &telego.SendMessageParams{
-		ChatID: telego.ChatID{ID: r.forwardToChatID},
-		Text:   fmt.Sprintf("message_score=%v, ban_reason=\"%v\"", score.Score, score.Reason),
-		ReplyParameters: &telego.ReplyParameters{
-			MessageID: forwardedMsg.MessageID,
-		},
-	}
-	_, err = r.bot.SendMessage(extraInfoMsgParams)
+	err = tg.SendMarkdownMessage(r.bot, telego.ChatID{ID: r.forwardToChatID}, &forwardedMsg.MessageID, fmt.Sprintf("message_spam_score=%v\n\nban_reason:\n%v", score.Score, score.Reason))
 
 	return err
 }
