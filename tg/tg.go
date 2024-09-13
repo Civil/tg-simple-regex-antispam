@@ -215,7 +215,7 @@ func (t *Telego) HandleMessages(bot *telego.Bot, message telego.Message) {
 			zap.String("filter_name", f.GetFilterName()),
 			zap.String("filter_type", f.GetName()),
 		)
-		score := f.Score(&message)
+		score := f.Score(t.bot, &message)
 		if score.Score > 0 {
 			logger.Info("message got scored",
 				zap.Int32("score", score.Score),

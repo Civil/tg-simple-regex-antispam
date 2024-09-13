@@ -21,6 +21,14 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
+var (
+	ErrRequiresRegexParameter = errors.New(
+		"regex filter requires `regex` parameter to work properly",
+	)
+	ErrRegexEmpty     = errors.New("regex cannot be empty")
+	ErrConfigDirEmpty = errors.New("config_dir cannot be empty")
+)
+
 type Filter struct {
 	sync.RWMutex
 	logger        *zap.Logger
@@ -34,61 +42,6 @@ type Filter struct {
 
 	tg.TGHaveAdminCommands
 }
-
-func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
-	var (
-		text    string
-		caption string
-		res     scoringResult.ScoringResult
-	)
-	if r.caseSensitive {
-		text = msg.Text
-		caption = msg.Caption
-	} else {
-		text = strings.ToLower(msg.Text)
-		caption = strings.ToLower(msg.Caption)
-	}
-	r.RLock()
-	defer r.RUnlock()
-	if len(r.regex) == 0 {
-		return &res
-	}
-
-	for _, re := range r.regex {
-		if re.MatchString(caption) || re.MatchString(text) {
-			r.logger.Debug("regex match found", zap.String("regex", re.String()))
-
-			res.Reason = fmt.Sprintf("Regex that matched:\n```%v```", re.String())
-			res.Score = 100
-			break
-		}
-	}
-	return &res
-}
-
-func (r *Filter) IsStateful() bool {
-	return false
-}
-
-func (r *Filter) GetName() string {
-	return "regex"
-}
-
-func (r *Filter) GetFilterName() string {
-	return ""
-}
-
-func (r *Filter) IsFinal() bool {
-	return r.isFinal
-}
-
-var (
-	ErrRequiresRegexParameter = errors.New(
-		"regex filter requires `regex` parameter to work properly",
-	)
-	ErrRegexEmpty     = errors.New("regex cannot be empty")
-	ErrConfigDirEmpty = errors.New("config_dir cannot be empty")
-)
 
 func New(logger *zap.Logger, config map[string]any, chainName string) (interfaces.FilteringRule, error) {
 	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "regex"))
@@ -153,6 +106,57 @@ func New(logger *zap.Logger, config map[string]any, chainName string) (interface
 	}
 
 	return &res, nil
+}
+
+func Help() string {
+	return "regex requires `config_dir` parameter"
+}
+
+func (r *Filter) Score(_ *telego.Bot, msg *telego.Message) *scoringResult.ScoringResult {
+	var (
+		text    string
+		caption string
+		res     scoringResult.ScoringResult
+	)
+	if r.caseSensitive {
+		text = msg.Text
+		caption = msg.Caption
+	} else {
+		text = strings.ToLower(msg.Text)
+		caption = strings.ToLower(msg.Caption)
+	}
+	r.RLock()
+	defer r.RUnlock()
+	if len(r.regex) == 0 {
+		return &res
+	}
+
+	for _, re := range r.regex {
+		if re.MatchString(caption) || re.MatchString(text) {
+			r.logger.Debug("regex match found", zap.String("regex", re.String()))
+
+			res.Reason = fmt.Sprintf("Regex that matched:\n```%v```", re.String())
+			res.Score = 100
+			break
+		}
+	}
+	return &res
+}
+
+func (r *Filter) IsStateful() bool {
+	return false
+}
+
+func (r *Filter) GetName() string {
+	return "regex"
+}
+
+func (r *Filter) GetFilterName() string {
+	return ""
+}
+
+func (r *Filter) IsFinal() bool {
+	return r.isFinal
 }
 
 func (r *Filter) tgHelp(logger *zap.Logger, bot *telego.Bot, message *telego.Message, _ []string) error {
@@ -285,10 +289,6 @@ func (r *Filter) loadConfig() error {
 		})
 	})
 	return err
-}
-
-func Help() string {
-	return "regex requires `config_dir` parameter"
 }
 
 func (r *Filter) Close() error {
