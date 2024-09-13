@@ -47,6 +47,19 @@ func GetOptionInt(config map[string]any, name string) (int, error) {
 	return val, nil
 }
 
+func GetOptionIntWithDefault(config map[string]any, name string, def int) (int, error) {
+	var val int
+	valI, ok := config[name]
+	if !ok {
+		return def, nil
+	}
+	val, ok = valI.(int)
+	if !ok {
+		return def, merry.Wrap(ErrNotAnInt, merry.WithMessagef("%s is not an int", name))
+	}
+	return val, nil
+}
+
 func GetOptionBool(config map[string]any, name string) (bool, error) {
 	var val bool
 	valI, ok := config[name]

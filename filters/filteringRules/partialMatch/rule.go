@@ -13,39 +13,6 @@ import (
 	config2 "github.com/Civil/tg-simple-regex-antispam/helper/config"
 )
 
-type Filter struct {
-	logger        *zap.Logger
-	chainName     string
-	partialMatch  string
-	caseSensitive bool
-	isFinal       bool
-}
-
-func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
-	res := &scoringResult.ScoringResult{}
-	if strings.Contains(msg.Caption, r.partialMatch) || strings.Contains(msg.Text, r.partialMatch) {
-		res.Reason = fmt.Sprintf("Partial match found: %s", r.partialMatch)
-		res.Score = 100
-	}
-	return res
-}
-
-func (r *Filter) IsStateful() bool {
-	return false
-}
-
-func (r *Filter) GetName() string {
-	return "partialMatch"
-}
-
-func (r *Filter) GetFilterName() string {
-	return ""
-}
-
-func (r *Filter) IsFinal() bool {
-	return r.isFinal
-}
-
 var (
 	ErrRequiresMatchParam = errors.New(
 		"partialMatch filter requires `match` configuration parameter",
@@ -53,6 +20,14 @@ var (
 	ErrMatchEmpty           = errors.New("`match` cannot be empty")
 	ErrCaseSensitiveNotBool = errors.New("case_sensitive is not a bool")
 )
+
+type Filter struct {
+	logger        *zap.Logger
+	chainName     string
+	partialMatch  string
+	caseSensitive bool
+	isFinal       bool
+}
 
 func New(logger *zap.Logger, config map[string]any, chainName string) (interfaces.FilteringRule, error) {
 	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "partialMatch"))
@@ -89,6 +64,31 @@ func New(logger *zap.Logger, config map[string]any, chainName string) (interface
 
 func Help() string {
 	return "partialMatch requires `match` parameter"
+}
+
+func (r *Filter) Score(_ *telego.Bot, msg *telego.Message) *scoringResult.ScoringResult {
+	res := &scoringResult.ScoringResult{}
+	if strings.Contains(msg.Caption, r.partialMatch) || strings.Contains(msg.Text, r.partialMatch) {
+		res.Reason = fmt.Sprintf("Partial match found: %s", r.partialMatch)
+		res.Score = 100
+	}
+	return res
+}
+
+func (r *Filter) IsStateful() bool {
+	return false
+}
+
+func (r *Filter) GetName() string {
+	return "partialMatch"
+}
+
+func (r *Filter) GetFilterName() string {
+	return ""
+}
+
+func (r *Filter) IsFinal() bool {
+	return r.isFinal
 }
 
 func (r *Filter) TGAdminPrefix() string {

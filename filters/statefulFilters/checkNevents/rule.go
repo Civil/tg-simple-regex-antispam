@@ -20,6 +20,11 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
+var (
+	ErrStateDirEmpty = errors.New("state_dir cannot be empty")
+	ErrNIsZero       = errors.New("n cannot be equal to 0")
+)
+
 type Filter struct {
 	chainName      string
 	n              int
@@ -39,11 +44,6 @@ type Filter struct {
 
 	tg.TGHaveAdminCommands
 }
-
-var (
-	ErrStateDirEmpty = errors.New("state_dir cannot be empty")
-	ErrNIsZero       = errors.New("n cannot be equal to 0")
-)
 
 func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.Bot, config map[string]any,
 	filteringRules []interfaces.FilteringRule, actions []actions.Action,
@@ -110,6 +110,10 @@ func New(logger *zap.Logger, chainName string, banDB bannedDB.BanDB, _ *telego.B
 	return f, nil
 }
 
+func Help() string {
+	return "checkNevents requires `stateFile` parameter"
+}
+
 func (r *Filter) setState(userID int64, s *checkNeventsState.State) error {
 	b, err := proto.Marshal(s)
 	if err != nil {
@@ -146,7 +150,7 @@ func (r *Filter) RemoveState(userID int64) error {
 		})
 }
 
-func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
+func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.ScoringResult {
 	r.logger.Debug("scoring message", zap.Any("message", msg))
 	userID := msg.From.ID
 	logger := r.logger.With(zap.Int64("userID", userID))
@@ -193,7 +197,7 @@ func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
 
 	// Checking for the filters to match the message
 	for _, filter := range r.filteringRules {
-		score := filter.Score(msg)
+		score := filter.Score(bot, msg)
 		if score.Score > maxScore.Score {
 			maxScore = score
 			if filter.IsFinal() {
@@ -275,10 +279,6 @@ func (r *Filter) GetName() string {
 
 func (r *Filter) IsFinal() bool {
 	return r.isFinal
-}
-
-func Help() string {
-	return "checkNevents requires `stateFile` parameter"
 }
 
 func (r *Filter) Close() error {

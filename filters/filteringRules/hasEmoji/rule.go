@@ -1,6 +1,9 @@
-package isForward
+package hasEmoji
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/mymmrac/telego"
 	"go.uber.org/zap"
 
@@ -13,30 +16,56 @@ type Filter struct {
 	logger    *zap.Logger
 	chainName string
 	isFinal   bool
+	numEmojis int
+
+	linkTypes map[string]bool
 }
 
+var ErrThresholdTooLow = errors.New("threshold for number of emojis must be positive")
+
 func New(logger *zap.Logger, config map[string]any, chainName string) (interfaces.FilteringRule, error) {
-	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "isForward"))
+	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "hasEmoji"))
 	isFinal, err := config2.GetOptionBoolWithDefault(config, "isFinal", false)
 	if err != nil {
 		return nil, err
+	}
+
+	numEmojis, err := config2.GetOptionIntWithDefault(config, "numEmojis", 7)
+	if err != nil {
+		return nil, err
+	}
+
+	if numEmojis <= 0 {
+		return nil, ErrThresholdTooLow
 	}
 
 	return &Filter{
 		logger:    logger,
 		chainName: chainName,
 		isFinal:   isFinal,
+		numEmojis: numEmojis,
+
+		linkTypes: map[string]bool{
+			"custom_emoji": true,
+		},
 	}, nil
 }
 
 func Help() string {
-	return "isForward checks if the message is forwarded"
+	return "hasEmoji checks if the message has too much emoji or stickers"
 }
 
 func (r *Filter) Score(_ *telego.Bot, msg *telego.Message) *scoringResult.ScoringResult {
 	res := &scoringResult.ScoringResult{}
-	if msg.ForwardOrigin != nil {
-		res.Reason = "this message have forwardOrigin (is forwarded)"
+	var linkCount int
+	for _, entity := range msg.Entities {
+		if _, ok := r.linkTypes[entity.Type]; ok {
+			linkCount++
+		}
+	}
+
+	if linkCount >= r.numEmojis {
+		res.Reason = fmt.Sprintf("found %d emoji/stickers, which is more than threshold of %d.", linkCount, r.numEmojis)
 		res.Score = 100
 	}
 	return res
@@ -47,7 +76,7 @@ func (r *Filter) IsStateful() bool {
 }
 
 func (r *Filter) GetName() string {
-	return "isForward"
+	return "hasEmoji"
 }
 
 func (r *Filter) GetFilterName() string {

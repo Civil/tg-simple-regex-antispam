@@ -21,6 +21,11 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/helper/tg"
 )
 
+var (
+	ErrStateDirEmpty = errors.New("state_dir cannot be empty")
+	ErrNIsZero       = errors.New("n cannot be equal to 0")
+)
+
 type Filter struct {
 	chainName string
 	logger    *zap.Logger
@@ -36,11 +41,6 @@ type Filter struct {
 	isFinal         bool
 	removeReportMsg bool
 }
-
-var (
-	ErrStateDirEmpty = errors.New("state_dir cannot be empty")
-	ErrNIsZero       = errors.New("n cannot be equal to 0")
-)
 
 func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot, config map[string]any,
 	filteringRules []interfaces.FilteringRule, actions []actions.Action,
@@ -87,6 +87,10 @@ func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot
 	return f, nil
 }
 
+func Help() string {
+	return "report requires `stateFile` parameter"
+}
+
 func (r *Filter) setState(userID int64, s *checkNeventsState.State) error {
 	b, err := proto.Marshal(s)
 	if err != nil {
@@ -123,7 +127,7 @@ func (r *Filter) RemoveState(userID int64) error {
 		})
 }
 
-func (r *Filter) Score(msg *telego.Message) *scoringResult.ScoringResult {
+func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.ScoringResult {
 	score := &scoringResult.ScoringResult{}
 	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
 		r.logger.Debug("message does not start with /report or /spam")
@@ -223,10 +227,6 @@ func (r *Filter) GetFilterName() string {
 
 func (r *Filter) IsFinal() bool {
 	return r.isFinal
-}
-
-func Help() string {
-	return "report requires `stateFile` parameter"
 }
 
 func (r *Filter) Close() error {

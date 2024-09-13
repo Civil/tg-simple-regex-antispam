@@ -9,7 +9,7 @@ import (
 )
 
 type FilteringRule interface {
-	Score(*telego.Message) *scoringResult.ScoringResult
+	Score(*telego.Bot, *telego.Message) *scoringResult.ScoringResult
 	IsStateful() bool
 	GetName() string
 	GetFilterName() string
