@@ -34,14 +34,35 @@ message Entities {
   uint32 length = 3;
 }
 
+message Reply_to_message {
+  uint32 message_id = 1;
+  uint32 message_thread_id = 2;
+  From from = 3;
+  uint32 date = 4;
+  Chat chat = 5;
+  string text = 6;
+}
+
+message Photo {
+  string file_id = 1;
+  string file_unique_id = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint32 file_size = 5;
+}
+
 message Message {
   uint32 message_id = 1;
-  From from = 2;
-  uint32 date = 3;
-  Chat chat = 4;
-  Forward_origin forward_origin = 5;
-  string text = 6;
-  repeated Entities entities = 7;
+  uint32 message_thread_id = 2;
+  From from = 3;
+  uint32 date = 4;
+  Chat chat = 5;
+  Forward_origin forward_origin = 6;
+  string text = 7;
+  repeated Entities entities = 8;
+  Reply_to_message reply_to_message = 9;
+  repeated Photo photo = 10;
+  string caption = 11;
 }
 
 
