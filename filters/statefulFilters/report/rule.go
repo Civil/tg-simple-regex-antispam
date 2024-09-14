@@ -129,18 +129,24 @@ func (r *Filter) RemoveState(userID int64) error {
 
 func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.ScoringResult {
 	score := &scoringResult.ScoringResult{}
-	if !strings.HasPrefix("/report", msg.Text) && !strings.HasPrefix("/spam", msg.Text) {
-		r.logger.Debug("message does not start with /report or /spam")
+	if !strings.HasPrefix(msg.Text, "/report") {
+		r.logger.Debug("message does not start with /report")
 		return score
 	}
 	if msg.ReplyToMessage == nil {
 		r.logger.Debug("message does not have a reply")
+		err := tg.SendMessage(r.bot, msg.Chat.ChatID(), &msg.MessageID, "Report must be a reply to a message")
+		if err != nil {
+			r.logger.Error("failed to send message", zap.Error(err))
+		}
 		return score
 	}
+
 	r.logger.Debug("got a message that start with /report or /spam",
 		zap.String("message_text", msg.Text),
 		zap.String("from_user", msg.From.Username),
 	)
+
 	reportedMsg := msg.ReplyToMessage
 	stateKey := int64(reportedMsg.MessageID)
 	actualState, err := r.getState(stateKey)
@@ -160,17 +166,7 @@ func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.Scor
 	// We already reported that message/user
 	if actualState.Verified {
 		r.logger.Debug("message/user already reported")
-		sendMessageParams := &telego.SendMessageParams{
-			ChatID: msg.Chat.ChatID(),
-			Text:   "Message/user was already reported",
-			ReplyParameters: &telego.ReplyParameters{
-				MessageID: msg.MessageID,
-			},
-		}
-
-		_, err = r.bot.SendMessage(
-			sendMessageParams,
-		)
+		err = tg.SendMessage(r.bot, msg.Chat.ChatID(), &msg.MessageID, "Message/user was already reported")
 		if err != nil {
 			r.logger.Error("failed to send message", zap.Error(err))
 		}
@@ -184,6 +180,12 @@ func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.Scor
 		score.Score = -1
 		score.Reason = "already reported"
 		return score
+	}
+	if r.removeReportMsg {
+		err = tg.DeleteMessage(r.bot, msg)
+		if err != nil {
+			r.logger.Error("failed to delete message", zap.Error(err))
+		}
 	}
 
 	r.logger.Debug("applying actions...")
