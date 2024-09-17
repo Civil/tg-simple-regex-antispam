@@ -155,11 +155,11 @@ func (r *BannedDB) listCmd(logger *zap.Logger, bot *telego.Bot, message *telego.
 }
 
 func (r *BannedDB) unbanCmd(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
-	if len(tokens) < 2 {
+	if len(tokens) < 1 {
 		logger.Warn("invalid command", zap.Strings("tokens", tokens))
 		return stateful.ErrNotSupported
 	}
-	userID := tokens[1]
+	userID := tokens[0]
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
 		logger.Warn("invalid user id", zap.Strings("tokens", tokens), zap.Error(err))
@@ -187,11 +187,11 @@ func (r *BannedDB) banCmd(logger *zap.Logger, bot *telego.Bot, message *telego.M
 }
 
 func (r *BannedDB) ban(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string, deleteAll bool) error {
-	if len(tokens) < 2 {
+	if len(tokens) < 1 {
 		logger.Warn("invalid command", zap.Strings("tokens", tokens))
 		return stateful.ErrInvalidCommand
 	}
-	userID := tokens[1]
+	userID := tokens[0]
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
 		logger.Warn("invalid user id", zap.Strings("tokens", tokens), zap.Error(err))
@@ -223,7 +223,7 @@ func (r *BannedDB) helpCmd(logger *zap.Logger, bot *telego.Bot, message *telego.
 	buf.WriteString(" - `unban` - unban user by ID\n")
 	buf.WriteString(" - `help` - this help\n")
 
-	err := tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
+	err := tg.SendMarkdownMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
 	if err != nil {
 		logger.Error("failed to send message", zap.Error(err))
 	}
