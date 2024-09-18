@@ -34,7 +34,7 @@ func (l *StdLogger) Debugf(msg string, args ...interface{}) {
 	for i := range args {
 		if s, ok := args[i].(string); ok {
 			if strings.HasPrefix(s, "API response getUpdates") || strings.HasPrefix(s, "API call to") {
-				continue
+				return
 			}
 			args[i] = l.tgApiTokenRE.ReplaceAllString(s, "api.telegram.org/bot**TOKEN**/")
 		}
