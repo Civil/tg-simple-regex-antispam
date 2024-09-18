@@ -3,6 +3,7 @@ package logs
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -32,6 +33,9 @@ func (l *StdLogger) Warningf(msg string, args ...interface{}) {
 func (l *StdLogger) Debugf(msg string, args ...interface{}) {
 	for i := range args {
 		if s, ok := args[i].(string); ok {
+			if strings.HasPrefix(s, "API response getUpdates") || strings.HasPrefix(s, "API call to") {
+				continue
+			}
 			args[i] = l.tgApiTokenRE.ReplaceAllString(s, "api.telegram.org/bot**TOKEN**/")
 		}
 	}
