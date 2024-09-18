@@ -31,7 +31,7 @@ func (l *StdLogger) Warningf(msg string, args ...interface{}) {
 }
 
 func (l *StdLogger) Debugf(msg string, args ...interface{}) {
-	if strings.HasPrefix(msg, "API response getUpdates") || strings.HasPrefix(msg, "API call to") {
+	if strings.HasPrefix(msg, "API response getUpdates: Ok: true") || strings.HasPrefix(msg, "API call to") {
 		return
 	}
 	for i := range args {
