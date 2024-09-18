@@ -128,6 +128,8 @@ func main() {
 						statefulFilters = append(statefulFilters, statefulFilter)
 					}
 
+					banDB.SetStatefulFilters(statefulFilters)
+
 					tbot.UpdatePrefixes()
 
 					logger.Info("starting bot",

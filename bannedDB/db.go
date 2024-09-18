@@ -11,6 +11,7 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"go.uber.org/zap"
 
+	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
 	"github.com/Civil/tg-simple-regex-antispam/helper/stateful"
@@ -21,6 +22,8 @@ type BannedDB struct {
 	logger   *zap.Logger
 	stateDir string
 	db       *badger.DB
+
+	statefulFilters []interfaces.StatefulFilter
 
 	tg.TGHaveAdminCommands
 }
@@ -71,11 +74,31 @@ func (r *BannedDB) BanUser(userID int64) error {
 		})
 }
 
+func (r *BannedDB) SetStatefulFilters(filters []interfaces.StatefulFilter) {
+	r.statefulFilters = filters
+}
+
 func (r *BannedDB) UnbanUser(userID int64) error {
-	return r.db.Update(
+	err := r.db.Update(
 		func(txn *badger.Txn) error {
 			return txn.Delete(badgerHelper.UserIDToKey(userID))
 		})
+	if err != nil {
+		return err
+	}
+	if r.statefulFilters != nil {
+		for _, filter := range r.statefulFilters {
+			err = filter.UnbanUser(userID)
+			if err != nil {
+				r.logger.Error("failed to remove state from filter",
+					zap.Int64("userID", userID),
+					zap.String("filter", filter.GetName()),
+					zap.Error(err),
+				)
+			}
+		}
+	}
+	return nil
 }
 
 func (r *BannedDB) IsBanned(userID int64) bool {

@@ -247,6 +247,10 @@ func (r *Filter) TGAdminPrefix() string {
 	return ""
 }
 
+func (r *Filter) UnbanUser(_ int64) error {
+	return nil
+}
+
 func (r *Filter) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
 	return nil
 }

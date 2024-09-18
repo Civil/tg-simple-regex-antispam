@@ -26,4 +26,5 @@ type StatefulFilter interface {
 	stateful.Stateful
 	FilteringRule
 	RemoveState(int64) error
+	UnbanUser(int64) error
 }

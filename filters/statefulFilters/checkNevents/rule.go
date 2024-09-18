@@ -293,6 +293,15 @@ func (r *Filter) LoadState() error {
 	return nil
 }
 
+func (r *Filter) UnbanUser(userID int64) error {
+	newState := &checkNeventsState.State{
+		Verified:   true,
+		MessageIds: make(map[int64]bool),
+		LastUpdate: timestamppb.Now(),
+	}
+	return r.setState(userID, newState)
+}
+
 func (r *Filter) TGAdminPrefix() string {
 	return r.chainName
 }
