@@ -31,11 +31,11 @@ func (l *StdLogger) Warningf(msg string, args ...interface{}) {
 }
 
 func (l *StdLogger) Debugf(msg string, args ...interface{}) {
+	if strings.HasPrefix(msg, "API response getUpdates") || strings.HasPrefix(msg, "API call to") {
+		return
+	}
 	for i := range args {
 		if s, ok := args[i].(string); ok {
-			if strings.HasPrefix(s, "API response getUpdates") || strings.HasPrefix(s, "API call to") {
-				return
-			}
 			args[i] = l.tgApiTokenRE.ReplaceAllString(s, "api.telegram.org/bot**TOKEN**/")
 		}
 	}
