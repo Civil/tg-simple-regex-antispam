@@ -21,7 +21,8 @@ type Action struct {
 	forwardToChatID int64
 }
 
-func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64, _ int64) error {
+func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64,
+	_ int64, _ any) error {
 	return ErrNotSupported
 }
 
@@ -35,7 +36,8 @@ func (r *Action) PerMessage() bool {
 	return true
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResult.ScoringResult, msg *telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResult.ScoringResult,
+	msg *telego.Message, _ any) error {
 	forwardParams := &telego.ForwardMessageParams{
 		ChatID:              telego.ChatID{ID: r.forwardToChatID},
 		FromChatID:          msg.Chat.ChatID(),

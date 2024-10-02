@@ -253,9 +253,9 @@ func (r *Filter) applyActions(logger *zap.Logger, score *scoringResult.ScoringRe
 	for _, action := range r.actions {
 		var err error
 		if action.PerMessage() {
-			err = action.ApplyToMessage(r, score, msg)
+			err = action.ApplyToMessage(r, score, msg, nil)
 		} else {
-			err = action.Apply(r, score, ChatID, messageIds, userID)
+			err = action.Apply(r, score, ChatID, messageIds, userID, nil)
 		}
 
 		if err != nil {

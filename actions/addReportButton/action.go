@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/mymmrac/telego"
 	"go.uber.org/zap"
@@ -25,11 +26,18 @@ type Action struct {
 
 var ErrNotSupported = errors.New("not supported")
 
-func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64, _ int64) error {
+func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64,
+	_ int64, _ any) error {
 	return ErrNotSupported
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, message *telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult,
+	message *telego.Message, extraParams any) error {
+	vacationAdmins, ok := extraParams.(map[string]time.Time)
+	if !ok {
+		r.logger.Error("extraParams is not a map[string]time.Time")
+		vacationAdmins = make(map[string]time.Time)
+	}
 	r.logger.Debug("adding report button to message",
 		zap.Any("message", message),
 		zap.Any("chat", message.Chat),
@@ -46,13 +54,16 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *scoringResult.S
 		msgBuf.WriteString(r.msgPrefix + " ")
 	}
 	if r.isAnonymousReport {
-		msgBuf.WriteString("Spam: ")
+		msgBuf.WriteString("Spam or chat rules violation: ")
 	} else {
-		msgBuf.WriteString("User @" + message.From.Username + " reported a spam: ")
+		msgBuf.WriteString("User @" + message.From.Username + " reported a spam or rules violation: ")
 	}
 	firstAdmin := true
 	for _, admin := range admins {
 		adminUsername := admin.MemberUser().Username
+		if _, ok = vacationAdmins[adminUsername]; ok {
+			continue
+		}
 		if strings.HasSuffix(strings.ToLower(adminUsername), "bot") {
 			continue
 		}

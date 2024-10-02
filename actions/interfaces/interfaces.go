@@ -9,8 +9,10 @@ import (
 )
 
 type Action interface {
-	Apply(callbackStatefulFilter interfaces.StatefulFilter, score *scoringResult.ScoringResult, chatID telego.ChatID, messageIDs []int64, userID int64) error
-	ApplyToMessage(callbackStatefulFilter interfaces.StatefulFilter, score *scoringResult.ScoringResult, message *telego.Message) error
+	Apply(callbackStatefulFilter interfaces.StatefulFilter, score *scoringResult.ScoringResult, chatID telego.ChatID,
+		messageIDs []int64, userID int64, extraParams any) error
+	ApplyToMessage(callbackStatefulFilter interfaces.StatefulFilter, score *scoringResult.ScoringResult,
+		message *telego.Message, extraParams any) error
 	GetName() string
 	PerMessage() bool
 }

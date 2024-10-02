@@ -25,7 +25,8 @@ type Action struct {
 	verboseDryRun bool
 }
 
-func (r *Action) Apply(callback interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, chatID telego.ChatID, messageIDs []int64, userID int64) error {
+func (r *Action) Apply(callback interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, chatID telego.ChatID,
+	messageIDs []int64, userID int64, _ any) error {
 	if r.dryRun {
 		r.logger.Debug("applying action in dry run mode")
 		if r.verboseDryRun {
@@ -93,7 +94,7 @@ func (r *Action) PerMessage() bool {
 	return false
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ *telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ *telego.Message, _ any) error {
 	return ErrNotSupported
 }
 

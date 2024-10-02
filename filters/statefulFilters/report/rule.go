@@ -1,8 +1,12 @@
 package report
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/mymmrac/telego"
@@ -27,6 +31,7 @@ var (
 )
 
 type Filter struct {
+	sync.RWMutex
 	chainName string
 	logger    *zap.Logger
 
@@ -40,6 +45,10 @@ type Filter struct {
 
 	isFinal         bool
 	removeReportMsg bool
+
+	vacations map[string]time.Time
+
+	tg.TGHaveAdminCommands
 }
 
 func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot, config map[string]any,
@@ -83,12 +92,121 @@ func New(logger *zap.Logger, chainName string, _ bannedDB.BanDB, bot *telego.Bot
 		filteringRules:  filteringRules,
 		removeReportMsg: removeReportMsg,
 		actions:         actions,
+		vacations:       make(map[string]time.Time),
+		TGHaveAdminCommands: tg.TGHaveAdminCommands{
+			Handlers: make(map[string]tg.AdminCMDHandlerFunc),
+		},
 	}
+
+	f.TGHaveAdminCommands.Handlers["vacation"] = f.vacationCmd
+	go f.cleanVacationState()
 	return f, nil
 }
 
 func Help() string {
 	return "report requires `stateFile` parameter"
+}
+
+func (r *Filter) cleanVacationState() {
+	for {
+		for admin, vacationEndDate := range r.vacations {
+			if time.Now().After(vacationEndDate) {
+				_ = r.removeVacation(admin)
+			}
+		}
+		time.Sleep(1 * time.Minute)
+	}
+}
+
+func (r *Filter) vacationCmd(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
+	r.logger.Debug("vacation command", zap.Strings("tokens", tokens))
+	if len(tokens) == 0 || tokens[0] == "list" {
+		return r.listVacations(logger, bot, message, tokens)
+	}
+	switch tokens[0] {
+	case "add":
+		return r.addVacationCmd(logger, bot, message, tokens[1:])
+	case "remove":
+		return r.removeVacationCmd(logger, bot, message, tokens[1:])
+	default:
+		return fmt.Errorf("unknown subcommand: %v", tokens[0])
+	}
+}
+
+func (r *Filter) listVacations(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
+	r.logger.Debug("list vacations command", zap.Strings("tokens", tokens))
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString("Admins on vacation:\n")
+	r.logger.Debug("taking lock")
+	r.RLock()
+	r.logger.Debug("lock taken")
+	if len(r.vacations) == 0 {
+		buf.WriteString("No admins on vacation\n")
+	} else {
+		for admin, vacationEndDate := range r.vacations {
+			buf.WriteString(fmt.Sprintf("%v is on vacation until %v\n", admin, vacationEndDate))
+		}
+	}
+	r.RUnlock()
+	r.logger.Debug("lock released")
+
+	r.logger.Debug("sending message", zap.String("message", buf.String()))
+	err := tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, buf.String())
+	if err != nil {
+		r.logger.Error("failed to send message", zap.Error(err))
+	}
+	return err
+}
+
+func (r *Filter) addVacationCmd(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
+	if len(tokens) == 0 {
+		return fmt.Errorf("no admin username specified")
+	}
+	if len(tokens) == 1 {
+		return fmt.Errorf("no vacation duration provided")
+	}
+	admin := tokens[0]
+	vacationDuration, err := time.ParseDuration(tokens[1])
+	if err != nil {
+		return fmt.Errorf("failed to parse duration for admin %v: %v", admin, err)
+	}
+	r.Lock()
+	r.vacations[admin] = time.Now().Add(vacationDuration)
+	r.Unlock()
+	err = tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID, fmt.Sprintf("Admin %v is on vacation until %v", admin, r.vacations[admin]))
+	if err != nil {
+		r.logger.Error("failed to send message", zap.Error(err))
+	}
+	return err
+}
+
+func (r *Filter) removeVacationCmd(logger *zap.Logger, bot *telego.Bot, message *telego.Message,
+	tokens []string) error {
+	if len(tokens) == 0 {
+		return fmt.Errorf("no admin username specified")
+	}
+	admin := tokens[0]
+	err := r.removeVacation(admin)
+	if err != nil {
+		return err
+	}
+	err = tg.SendMessage(bot, message.Chat.ChatID(), &message.MessageID,
+		fmt.Sprintf("Admin %v is no longer on vacation", admin))
+	if err != nil {
+		r.logger.Error("failed to send message", zap.Error(err))
+	}
+	return err
+}
+
+func (r *Filter) removeVacation(admin string) error {
+	r.Lock()
+	defer r.Unlock()
+	_, ok := r.vacations[admin]
+	if !ok {
+		return fmt.Errorf("admin %v is not on vacation", admin)
+	}
+	delete(r.vacations, admin)
+	return nil
 }
 
 func (r *Filter) setState(userID int64, s *checkNeventsState.State) error {
@@ -142,7 +260,7 @@ func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.Scor
 		return score
 	}
 
-	r.logger.Debug("got a message that start with /report or /spam",
+	r.logger.Debug("got a message that start with /report",
 		zap.String("message_text", msg.Text),
 		zap.String("from_user", msg.From.Username),
 	)
@@ -196,7 +314,7 @@ func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.Scor
 			zap.Any("message_ids", actualState.MessageIds),
 			zap.Any("action", action),
 		)
-		err = action.ApplyToMessage(r, score, reportedMsg)
+		err = action.ApplyToMessage(r, score, reportedMsg, r.vacations)
 		if err != nil {
 			r.logger.Error("failed to apply action", zap.Any("action", action), zap.Error(err))
 			return score
@@ -244,13 +362,9 @@ func (r *Filter) LoadState() error {
 }
 
 func (r *Filter) TGAdminPrefix() string {
-	return ""
+	return r.chainName
 }
 
 func (r *Filter) UnbanUser(_ int64) error {
-	return nil
-}
-
-func (r *Filter) HandleTGCommands(logger *zap.Logger, bot *telego.Bot, message *telego.Message, tokens []string) error {
 	return nil
 }
