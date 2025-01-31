@@ -2,7 +2,6 @@ package bannedDB
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"go.uber.org/zap"
 
+	"github.com/Civil/tg-simple-regex-antispam/constants"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
 	badgerHelper "github.com/Civil/tg-simple-regex-antispam/helper/badger"
 	"github.com/Civil/tg-simple-regex-antispam/helper/badger/badgerOpts"
@@ -28,22 +28,14 @@ type BannedDB struct {
 	tg.TGHaveAdminCommands
 }
 
-var ErrRequiresStateDir = errors.New(
-	"banDB requires `state_dir` configuration parameter",
-)
-
-var ErrStateDirNotString = errors.New(
-	"state_dir is not a string",
-)
-
 func New(logger *zap.Logger, config map[string]any) (BanDB, error) {
 	stateDirI, ok := config["state_dir"]
 	if !ok {
-		return nil, ErrRequiresStateDir
+		return nil, constants.ErrRequiresStateDir
 	}
 	stateDir, ok := stateDirI.(string)
 	if !ok {
-		return nil, ErrStateDirNotString
+		return nil, constants.ErrStateDirNotString
 	}
 
 	badgerDB, err := badger.Open(badgerOpts.GetBadgerOptions(logger, "bannedDB", stateDir))

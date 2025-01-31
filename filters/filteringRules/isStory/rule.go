@@ -1,4 +1,4 @@
-package isForward
+package isStory
 
 import (
 	"github.com/mymmrac/telego"
@@ -16,7 +16,7 @@ type Filter struct {
 }
 
 func New(logger *zap.Logger, config map[string]any, chainName string) (interfaces.FilteringRule, error) {
-	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "isForward"))
+	logger = logger.With(zap.String("filter", chainName), zap.String("filter_type", "isStory"))
 	isFinal, err := config2.GetOptionBoolWithDefault(config, "isFinal", true)
 	if err != nil {
 		return nil, err
@@ -35,8 +35,8 @@ func Help() string {
 
 func (r *Filter) Score(_ *telego.Bot, msg *telego.Message) *scoringResult.ScoringResult {
 	res := &scoringResult.ScoringResult{}
-	if msg.ForwardOrigin != nil {
-		res.Reason = "this message have forwardOrigin (is forwarded)"
+	if msg.Story != nil && msg.Story.ID != 0 {
+		res.Reason = "this message is a story"
 		res.Score = 100
 	}
 	return res
@@ -47,7 +47,7 @@ func (r *Filter) IsStateful() bool {
 }
 
 func (r *Filter) GetName() string {
-	return "isForward"
+	return "isStory"
 }
 
 func (r *Filter) GetFilterName() string {

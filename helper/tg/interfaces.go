@@ -28,6 +28,7 @@ func (r *TGHaveAdminCommands) HandleTGCommands(logger *zap.Logger, bot *telego.B
 	for cmd := range r.Handlers {
 		supportedCommands = append(supportedCommands, cmd)
 	}
+	logger.Debug("handling tg command", zap.Any("message", message), zap.Strings("supported_commands", supportedCommands))
 	if tokens == nil {
 		logger.Warn("empty tokens for tg command")
 		buf := bytes.NewBuffer([]byte{})

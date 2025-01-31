@@ -7,6 +7,7 @@ import (
 	"github.com/Civil/tg-simple-regex-antispam/actions/deleteAndBan"
 	"github.com/Civil/tg-simple-regex-antispam/actions/forwardToChat"
 	"github.com/Civil/tg-simple-regex-antispam/actions/interfaces"
+	"github.com/Civil/tg-simple-regex-antispam/actions/storeAsSpam"
 )
 
 var (
@@ -14,20 +15,22 @@ var (
 		"deleteAndBan":    deleteAndBan.New,
 		"addReportButton": addReportButton.New,
 		"forwardToChat":   forwardToChat.New,
+		"storeAsSpam":     storeAsSpam.New,
 	}
 	supportedActionsHelp = map[string]interfaces.HelpFunc{
 		"deleteAndBan":    deleteAndBan.Help,
 		"addReportButton": addReportButton.Help,
 		"forwardToChat":   forwardToChat.Help,
+		"storeAsSpam":     storeAsSpam.Help,
 	}
 )
 
-var ErrUknownAction = errors.New("unknown action")
+var ErrUnknownAction = errors.New("unknown action")
 
 func GetAction(name string) (interfaces.InitFunc, error) {
 	action, ok := supportedActions[name]
 	if !ok {
-		return nil, ErrUknownAction
+		return nil, ErrUnknownAction
 	}
 	return action, nil
 }

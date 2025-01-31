@@ -141,6 +141,10 @@ func (t *Telego) HandleAdminMessages(logger *zap.Logger, bot *telego.Bot, messag
 	}
 
 	if h, ok := t.handlers[tokens[1]]; ok {
+		logger.Debug("handling tg admin command",
+			zap.String("command", tokens[1]),
+			zap.Strings("tokens", tokens),
+		)
 		var err error
 		if len(tokens) > 2 {
 			err = h(logger, bot, message, tokens[2:])

@@ -21,7 +21,8 @@ type Action struct {
 	forwardToChatID int64
 }
 
-func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64, _ int64) error {
+func (r *Action) Apply(_ interfaces2.StatefulFilter, _ *scoringResult.ScoringResult, _ telego.ChatID, _ []int64,
+	_ int64, _ any) error {
 	return ErrNotSupported
 }
 
@@ -35,7 +36,8 @@ func (r *Action) PerMessage() bool {
 	return true
 }
 
-func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResult.ScoringResult, msg *telego.Message) error {
+func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResult.ScoringResult,
+	msg *telego.Message, _ any) error {
 	forwardParams := &telego.ForwardMessageParams{
 		ChatID:              telego.ChatID{ID: r.forwardToChatID},
 		FromChatID:          msg.Chat.ChatID(),
@@ -63,7 +65,8 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResu
 		return err
 	}
 
-	msgText := fmt.Sprintf("used_id: %v\nmessage_spam_score: %v\n\nban_reason:\n%v", forwardedMsg.From.ID, score.Score,
+	msgText := fmt.Sprintf("used\\_id: %v\nmessage\\_spam\\_score: %v\n\nban\\_reason:\n%v", forwardedMsg.From.ID,
+		score.Score,
 		score.Reason)
 	err = tg.SendMarkdownMessage(r.bot, telego.ChatID{ID: r.forwardToChatID}, &forwardedMsg.MessageID, msgText)
 	if err != nil {
