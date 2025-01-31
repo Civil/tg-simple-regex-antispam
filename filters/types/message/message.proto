@@ -1,6 +1,8 @@
-syntax = "proto3";
+edition = "2023";
 package message;
 
+import "google/protobuf/go_features.proto";
+option features.(pb.go).api_level = API_OPAQUE;
 option go_package = "github.com/Civil/tg-simple-regex-antisapm/filters/types/message";
 
 

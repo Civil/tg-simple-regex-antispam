@@ -65,7 +65,8 @@ func (r *Action) ApplyToMessage(_ interfaces2.StatefulFilter, score *scoringResu
 		return err
 	}
 
-	msgText := fmt.Sprintf("used_id: %v\nmessage_spam_score: %v\n\nban_reason:\n%v", forwardedMsg.From.ID, score.Score,
+	msgText := fmt.Sprintf("used\\_id: %v\nmessage\\_spam\\_score: %v\n\nban\\_reason:\n%v", forwardedMsg.From.ID,
+		score.Score,
 		score.Reason)
 	err = tg.SendMarkdownMessage(r.bot, telego.ChatID{ID: r.forwardToChatID}, &forwardedMsg.MessageID, msgText)
 	if err != nil {

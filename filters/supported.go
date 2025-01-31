@@ -3,31 +3,40 @@ package filters
 import (
 	"errors"
 
+	"github.com/Civil/tg-simple-regex-antispam/filters/chains/checkNevents"
+	"github.com/Civil/tg-simple-regex-antispam/filters/chains/report"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/hasEmoji"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/hasLinks"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/isForward"
+	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/isInSpam"
+	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/isRepeatedMessage"
+	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/isStory"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/partialMatch"
 	"github.com/Civil/tg-simple-regex-antispam/filters/filteringRules/regex"
 	"github.com/Civil/tg-simple-regex-antispam/filters/interfaces"
-	"github.com/Civil/tg-simple-regex-antispam/filters/statefulFilters/checkNevents"
-	"github.com/Civil/tg-simple-regex-antispam/filters/statefulFilters/report"
 	"github.com/Civil/tg-simple-regex-antispam/filters/types"
 )
 
 var (
 	supportedFilteringRules = map[string]interfaces.InitFunc{
-		"regex":        regex.New,
-		"partialMatch": partialMatch.New,
-		"isForward":    isForward.New,
-		"hasEmoji":     hasEmoji.New,
-		"hasLinks":     hasLinks.New,
+		"regex":             regex.New,
+		"partialMatch":      partialMatch.New,
+		"isForward":         isForward.New,
+		"hasEmoji":          hasEmoji.New,
+		"hasLinks":          hasLinks.New,
+		"isInSpam":          isInSpam.New,
+		"isRepeatedMessage": isRepeatedMessage.New,
+		"isStory":           isStory.New,
 	}
 	supportedFilteringRulesHelp = map[string]interfaces.HelpFunc{
-		"regex":        regex.Help,
-		"partialMatch": partialMatch.Help,
-		"isForward":    isForward.Help,
-		"hasEmoji":     hasEmoji.Help,
-		"hasLinks":     hasLinks.Help,
+		"regex":             regex.Help,
+		"partialMatch":      partialMatch.Help,
+		"isForward":         isForward.Help,
+		"hasEmoji":          hasEmoji.Help,
+		"hasLinks":          hasLinks.Help,
+		"isInSpam":          isInSpam.Help,
+		"isRepeatedMessage": isRepeatedMessage.Help,
+		"isStory":           isStory.Help,
 	}
 )
 

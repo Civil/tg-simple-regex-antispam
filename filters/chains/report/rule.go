@@ -268,21 +268,21 @@ func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.Scor
 	reportedMsg := msg.ReplyToMessage
 	stateKey := int64(reportedMsg.MessageID)
 	actualState, err := r.getState(stateKey)
-	if err != nil || actualState == nil || len(actualState.MessageIds) == 0 {
+	if err != nil || actualState == nil || len(actualState.GetMessageIds()) == 0 {
 		r.logger.Debug("failed to get state, creating a clean one",
 			zap.Int("messageID", reportedMsg.MessageID),
 			zap.Error(err),
 		)
-		actualState = &checkNeventsState.State{
-			Verified:   false,
-			MessageIds: make(map[int64]bool),
+		actualState = checkNeventsState.State_builder{
+			Verified:   proto.Bool(false),
 			LastUpdate: timestamppb.Now(),
-		}
-		actualState.MessageIds[stateKey] = true
+		}.Build()
+		messageIds := map[int64]bool{stateKey: true}
+		actualState.SetMessageIds(messageIds)
 	}
 
 	// We already reported that message/user
-	if actualState.Verified {
+	if actualState.GetVerified() {
 		r.logger.Debug("message/user already reported")
 		err = tg.SendMessage(r.bot, msg.Chat.ChatID(), &msg.MessageID, "Message/user was already reported")
 		if err != nil {
@@ -311,7 +311,7 @@ func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.Scor
 	score.Reason = "reported command"
 	for _, action := range r.actions {
 		r.logger.Debug("trying to apply action",
-			zap.Any("message_ids", actualState.MessageIds),
+			zap.Any("message_ids", actualState.GetMessageIds()),
 			zap.Any("action", action),
 		)
 		err = action.ApplyToMessage(r, score, reportedMsg, r.vacations)
@@ -321,7 +321,7 @@ func (r *Filter) Score(bot *telego.Bot, msg *telego.Message) *scoringResult.Scor
 		}
 	}
 
-	actualState.Verified = true
+	actualState.SetVerified(true)
 	err = r.setState(stateKey, actualState)
 	if err != nil {
 		r.logger.Error("failed to set new state",
